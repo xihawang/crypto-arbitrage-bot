@@ -1,6 +1,6 @@
 """
-实时价格获取服务
-从多个交易所和数据源获取加密货币实时价格
+价格获取工具 - 从多个交易所和数据源实时获取加密货币价格
+支持: CoinGecko, 币安, Coinbase, Kraken 等
 """
 
 import requests
@@ -9,340 +9,329 @@ from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 from src.utils.logger import setup_logger
 
-logger = setup_logger("price_fetcher")
+logger = setup_logger(__name__)
 
 
 class PriceFetcher:
-    """价格获取服务 - 支持多个数据源"""
+    """多源加密货币实时价格获取器"""
     
-    # API 超时时间
-    TIMEOUT = 10
+    # API 端点配置
+    COINGECKO_API = "https://api.coingecko.com/api/v3"
+    BINANCE_API = "https://api.binance.com/api/v3"
+    COINBASE_API = "https://api.coinbase.com/v2"
+    KRAKEN_API = "https://api.kraken.com/0/public"
     
-    # 支持的交易所
-    EXCHANGES = {
-        "binance": "币安",
-        "coinbase": "Coinbase",
-        "kraken": "Kraken",
-        "coingecko": "CoinGecko"
+    # 交易对映射
+    PAIR_MAPPINGS = {
+        "BTC": {"symbol": "BTCUSDT", "id": "bitcoin"},
+        "ETH": {"symbol": "ETHUSDT", "id": "ethereum"},
+        "SOL": {"symbol": "SOLUSDT", "id": "solana"},
+        "USDT": {"symbol": "USDTUSDT", "id": "tether"},
+        "USDC": {"symbol": "USDCUSDT", "id": "usd-coin"},
     }
     
-    @staticmethod
-    def get_price_from_coingecko(symbols: List[str] = None) -> Dict[str, float]:
-        """
-        从 CoinGecko 获取价格 (免费 API，无需认证)
+    def __init__(self, timeout: int = 10):
+        """初始化价格获取器
         
         Args:
-            symbols: 加密货币符号列表 (如: ["bitcoin", "ethereum", "solana"])
-        
-        Returns:
-            {symbol: price_usd} 格式的价格字典
+            timeout: 请求超时时间(秒)
         """
-        if symbols is None:
-            symbols = ["bitcoin", "ethereum", "solana"]
+        self.timeout = timeout
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "CryptoArbitrageBot/1.0"
+        })
+    
+    # ============ CoinGecko 价格获取 ============
+    
+    def get_price_coingecko(self, crypto: str) -> Optional[Dict]:
+        """从 CoinGecko 获取价格
         
+        Args:
+            crypto: 加密货币代码 (BTC, ETH, SOL等)
+            
+        Returns:
+            包含价格和市场数据的字典
+        """
         try:
-            url = "https://api.coingecko.com/api/v3/simple/price"
+            coin_id = self.PAIR_MAPPINGS.get(crypto, {}).get("id", crypto.lower())
+            
+            url = f"{self.COINGECKO_API}/simple/price"
             params = {
-                "ids": ",".join(symbols),
+                "ids": coin_id,
                 "vs_currencies": "usd",
                 "include_market_cap": "true",
                 "include_24hr_vol": "true",
                 "include_24hr_change": "true"
             }
             
-            response = requests.get(url, params=params, timeout=PriceFetcher.TIMEOUT)
+            response = self.session.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
             data = response.json()
             
-            result = {}
-            for symbol, prices in data.items():
-                result[symbol] = prices.get("usd", None)
-            
-            logger.info(f"✅ CoinGecko 获取成功: {len(result)} 个资产")
-            return result
-            
+            if coin_id in data:
+                return {
+                    "exchange": "CoinGecko",
+                    "price": data[coin_id].get("usd"),
+                    "market_cap": data[coin_id].get("usd_market_cap"),
+                    "volume_24h": data[coin_id].get("usd_24h_vol"),
+                    "change_24h": data[coin_id].get("usd_24h_change"),
+                    "timestamp": datetime.now()
+                }
         except Exception as e:
-            logger.error(f"❌ CoinGecko 获取失败: {str(e)}")
-            return {}
+            logger.warning(f"❌ CoinGecko 获取 {crypto} 失败: {str(e)}")
+        
+        return None
     
-    @staticmethod
-    def get_price_from_binance(symbols: List[str] = None) -> Dict[str, float]:
-        """
-        从币安公开 API 获取价格 (无需认证)
+    # ============ 币安价格获取 ============
+    
+    def get_price_binance(self, crypto: str) -> Optional[Dict]:
+        """从币安获取价格
         
         Args:
-            symbols: 交易对列表 (如: ["BTCUSDT", "ETHUSDT", "SOLUSDT"])
-        
+            crypto: 加密货币代码
+            
         Returns:
-            {symbol: price} 格式的价格字典
+            包含价格的字典
         """
-        if symbols is None:
-            symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
-        
         try:
-            result = {}
+            symbol = self.PAIR_MAPPINGS.get(crypto, {}).get("symbol", f"{crypto}USDT")
             
-            for symbol in symbols:
-                url = "https://api.binance.com/api/v3/ticker/price"
-                params = {"symbol": symbol}
-                
-                response = requests.get(url, params=params, timeout=PriceFetcher.TIMEOUT)
-                response.raise_for_status()
-                data = response.json()
-                
-                result[symbol] = float(data['price'])
+            url = f"{self.BINANCE_API}/ticker/price"
+            params = {"symbol": symbol}
             
-            logger.info(f"✅ 币安获取成功: {len(result)} 个交易对")
-            return result
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
             
-        except Exception as e:
-            logger.error(f"❌ 币安获取失败: {str(e)}")
-            return {}
-    
-    @staticmethod
-    def get_price_from_coinbase(symbols: List[str] = None) -> Dict[str, float]:
-        """
-        从 Coinbase 公开 API 获取价格 (无需认证)
-        
-        Args:
-            symbols: 交易对列表 (如: ["BTC-USD", "ETH-USD"])
-        
-        Returns:
-            {symbol: price} 格式的价格字典
-        """
-        if symbols is None:
-            symbols = ["BTC-USD", "ETH-USD", "SOL-USD"]
-        
-        try:
-            result = {}
-            
-            for symbol in symbols:
-                url = f"https://api.coinbase.com/v2/prices/{symbol}/spot"
-                response = requests.get(url, timeout=PriceFetcher.TIMEOUT)
-                response.raise_for_status()
-                data = response.json()
-                
-                result[symbol] = float(data['data']['amount'])
-            
-            logger.info(f"✅ Coinbase 获取成功: {len(result)} 个交易对")
-            return result
-            
-        except Exception as e:
-            logger.error(f"❌ Coinbase 获取失败: {str(e)}")
-            return {}
-    
-    @staticmethod
-    def get_price_from_kraken(symbols: List[str] = None) -> Dict[str, float]:
-        """
-        从 Kraken 公开 API 获取价格 (无需认证)
-        
-        Args:
-            symbols: 交易对列表 (如: ["XBTUSDT", "ETHUSDT"])
-        
-        Returns:
-            {symbol: price} 格式的价格字典
-        """
-        if symbols is None:
-            symbols = ["XBTUSDT", "ETHUSDT", "SOLUSDT"]
-        
-        try:
-            result = {}
-            
-            for symbol in symbols:
-                url = "https://api.kraken.com/0/public/Ticker"
-                params = {"pair": symbol}
-                
-                response = requests.get(url, params=params, timeout=PriceFetcher.TIMEOUT)
-                response.raise_for_status()
-                data = response.json()
-                
-                if data.get('result'):
-                    ticker_data = data['result'][list(data['result'].keys())[0]]
-                    result[symbol] = float(ticker_data['c'][0])  # 最后交易价格
-            
-            logger.info(f"✅ Kraken 获取成功: {len(result)} 个交易对")
-            return result
-            
-        except Exception as e:
-            logger.error(f"❌ Kraken 获取失败: {str(e)}")
-            return {}
-    
-    @staticmethod
-    def get_price_from_all_exchanges(crypto: str = "BTC") -> Dict[str, float]:
-        """
-        从所有交易所获取价格并返回对比结果
-        
-        Args:
-            crypto: 加密货币代码 (如: "BTC", "ETH", "SOL")
-        
-        Returns:
-            {exchange_name: price} 格式的价格字典
-        """
-        results = {}
-        
-        # CoinGecko
-        symbol_map = {
-            "BTC": "bitcoin",
-            "ETH": "ethereum",
-            "SOL": "solana"
-        }
-        
-        if crypto in symbol_map:
-            cg_data = PriceFetcher.get_price_from_coingecko([symbol_map[crypto]])
-            if symbol_map[crypto] in cg_data:
-                results["CoinGecko"] = cg_data[symbol_map[crypto]]
-        
-        # 币安
-        binance_symbols = {
-            "BTC": "BTCUSDT",
-            "ETH": "ETHUSDT",
-            "SOL": "SOLUSDT"
-        }
-        
-        if crypto in binance_symbols:
-            binance_data = PriceFetcher.get_price_from_binance([binance_symbols[crypto]])
-            if binance_symbols[crypto] in binance_data:
-                results["币安"] = binance_data[binance_symbols[crypto]]
-        
-        # Coinbase
-        coinbase_symbols = {
-            "BTC": "BTC-USD",
-            "ETH": "ETH-USD",
-            "SOL": "SOL-USD"
-        }
-        
-        if crypto in coinbase_symbols:
-            coinbase_data = PriceFetcher.get_price_from_coinbase([coinbase_symbols[crypto]])
-            if coinbase_symbols[crypto] in coinbase_data:
-                results["Coinbase"] = coinbase_data[coinbase_symbols[crypto]]
-        
-        # Kraken
-        kraken_symbols = {
-            "BTC": "XBTUSDT",
-            "ETH": "ETHUSDT",
-            "SOL": "SOLUSDT"
-        }
-        
-        if crypto in kraken_symbols:
-            kraken_data = PriceFetcher.get_price_from_kraken([kraken_symbols[crypto]])
-            if kraken_symbols[crypto] in kraken_data:
-                results["Kraken"] = kraken_data[kraken_symbols[crypto]]
-        
-        return results
-    
-    @staticmethod
-    def compare_prices(crypto: str = "BTC") -> Dict:
-        """
-        获取多交易所价格并进行对比分析
-        
-        Args:
-            crypto: 加密货币代码 (如: "BTC", "ETH", "SOL")
-        
-        Returns:
-            包含价格、价差、套利机会等信息的字典
-        """
-        prices = PriceFetcher.get_price_from_all_exchanges(crypto)
-        
-        if not prices:
-            logger.warning(f"⚠️ 无法获取 {crypto} 的价格数据")
             return {
-                "success": False,
-                "crypto": crypto,
-                "message": "无可用数据"
+                "exchange": "币安",
+                "price": float(data.get("price", 0)),
+                "symbol": symbol,
+                "timestamp": datetime.now()
             }
+        except Exception as e:
+            logger.warning(f"❌ 币安获取 {crypto} 失败: {str(e)}")
         
-        # 计算统计数据
-        max_price = max(prices.values())
-        min_price = min(prices.values())
-        avg_price = sum(prices.values()) / len(prices)
+        return None
+    
+    # ============ Coinbase 价格获取 ============
+    
+    def get_price_coinbase(self, crypto: str) -> Optional[Dict]:
+        """从 Coinbase 获取价格
+        
+        Args:
+            crypto: 加密货币代码
+            
+        Returns:
+            包含价格的字典
+        """
+        try:
+            pair = f"{crypto}-USD"
+            
+            url = f"{self.COINBASE_API}/prices/{pair}/spot"
+            response = self.session.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            
+            return {
+                "exchange": "Coinbase",
+                "price": float(data["data"].get("amount", 0)),
+                "pair": pair,
+                "timestamp": datetime.now()
+            }
+        except Exception as e:
+            logger.warning(f"❌ Coinbase 获取 {crypto} 失败: {str(e)}")
+        
+        return None
+    
+    # ============ Kraken 价格获取 ============
+    
+    def get_price_kraken(self, crypto: str) -> Optional[Dict]:
+        """从 Kraken 获取价格
+        
+        Args:
+            crypto: 加密货币代码
+            
+        Returns:
+            包含价格的字典
+        """
+        try:
+            kraken_pair = f"X{crypto}USDT" if crypto in ["BTC", "ETH"] else f"{crypto}USDT"
+            
+            url = f"{self.KRAKEN_API}/Ticker"
+            params = {"pair": kraken_pair}
+            
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get("result"):
+                ticker = data["result"][list(data["result"].keys())[0]]
+                return {
+                    "exchange": "Kraken",
+                    "price": float(ticker["c"][0]),  # 最后交易价
+                    "pair": kraken_pair,
+                    "timestamp": datetime.now()
+                }
+        except Exception as e:
+            logger.warning(f"❌ Kraken 获取 {crypto} 失败: {str(e)}")
+        
+        return None
+    
+    # ============ 综合价格获取 ============
+    
+    def get_price_multi(self, crypto: str) -> Dict[str, Dict]:
+        """从多个交易所获取价格
+        
+        Args:
+            crypto: 加密货币代码
+            
+        Returns:
+            {exchange_name: price_data} 格式的字典
+        """
+        prices = {}
+        
+        # 并行获取所有价格
+        coingecko_price = self.get_price_coingecko(crypto)
+        if coingecko_price:
+            prices["CoinGecko"] = coingecko_price
+        
+        binance_price = self.get_price_binance(crypto)
+        if binance_price:
+            prices["币安"] = binance_price
+        
+        coinbase_price = self.get_price_coinbase(crypto)
+        if coinbase_price:
+            prices["Coinbase"] = coinbase_price
+        
+        kraken_price = self.get_price_kraken(crypto)
+        if kraken_price:
+            prices["Kraken"] = kraken_price
+        
+        return prices
+    
+    def get_price_average(self, crypto: str) -> float:
+        """获取多源价格平均值
+        
+        Args:
+            crypto: 加密货币代码
+            
+        Returns:
+            多个交易所的平均价格
+        """
+        prices = self.get_price_multi(crypto)
+        if not prices:
+            logger.error(f"❌ 无法获取 {crypto} 的价格")
+            return 0.0
+        
+        price_list = [p["price"] for p in prices.values() if "price" in p]
+        if price_list:
+            avg_price = sum(price_list) / len(price_list)
+            return round(avg_price, 2)
+        
+        return 0.0
+    
+    # ============ 价格对比分析 ============
+    
+    def analyze_price_diff(self, crypto: str) -> Dict:
+        """分析价格差异并识别套利机会
+        
+        Args:
+            crypto: 加密货币代码
+            
+        Returns:
+            包含价差分析的字典
+        """
+        prices = self.get_price_multi(crypto)
+        
+        if not prices or len(prices) < 2:
+            return {"status": "error", "message": "数据不足"}
+        
+        price_values = [p["price"] for p in prices.values() if "price" in p]
+        
+        if not price_values:
+            return {"status": "error", "message": "无价格数据"}
+        
+        max_price = max(price_values)
+        min_price = min(price_values)
         price_diff = max_price - min_price
         diff_rate = (price_diff / min_price) * 100
         
-        # 找到最高和最低的交易所
-        max_exchange = [k for k, v in prices.items() if v == max_price][0]
-        min_exchange = [k for k, v in prices.items() if v == min_price][0]
+        # 找出最高和最低交易所
+        max_exchange = next(k for k, v in prices.items() if v.get("price") == max_price)
+        min_exchange = next(k for k, v in prices.items() if v.get("price") == min_price)
         
-        # 检查是否有套利机会 (价差 > 0.1%)
-        has_arbitrage = diff_rate > 0.1
-        
-        result = {
-            "success": True,
+        analysis = {
             "crypto": crypto,
             "timestamp": datetime.now().isoformat(),
-            "prices": prices,
-            "statistics": {
-                "highest": max_price,
-                "highest_exchange": max_exchange,
-                "lowest": min_price,
-                "lowest_exchange": min_exchange,
-                "average": avg_price,
-                "difference": price_diff,
-                "difference_rate": diff_rate,
-                "exchanges_count": len(prices)
-            },
-            "arbitrage_opportunity": {
-                "detected": has_arbitrage,
-                "buy_exchange": min_exchange,
-                "sell_exchange": max_exchange,
-                "profit_rate": diff_rate,
-                "message": f"在 {min_exchange} 买入，{max_exchange} 卖出可获得 {diff_rate:.3f}% 利润 (扣除手续费后)" if has_arbitrage else "暂无明显套利机会"
-            }
+            "prices": {exchange: price_data.get("price") for exchange, price_data in prices.items()},
+            "max_price": max_price,
+            "min_price": min_price,
+            "price_diff": round(price_diff, 2),
+            "diff_rate": round(diff_rate, 4),
+            "max_exchange": max_exchange,
+            "min_exchange": min_exchange,
+            "arbitrage_possible": diff_rate > 0.1,  # > 0.1% 考虑有套利机会
         }
         
-        return result
+        return analysis
     
-    @staticmethod
-    def print_price_report(crypto: str = "BTC"):
+    # ============ 批量获取 ============
+    
+    def get_all_prices(self, cryptos: List[str]) -> Dict[str, Dict]:
+        """获取多个加密货币的价格
+        
+        Args:
+            cryptos: 加密货币代码列表
+            
+        Returns:
+            {crypto: multi_price_data} 格式的字典
         """
-        打印价格对比报告
+        all_prices = {}
+        for crypto in cryptos:
+            all_prices[crypto] = self.get_price_multi(crypto)
+        return all_prices
+    
+    def display_price_summary(self, crypto: str) -> None:
+        """显示价格汇总
         
         Args:
             crypto: 加密货币代码
         """
-        print("\n" + "="*70)
-        print(f"🔍 {crypto} 实时价格对比报告")
-        print("="*70)
-        print(f"⏰ 更新时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        analysis = self.analyze_price_diff(crypto)
         
-        data = PriceFetcher.compare_prices(crypto)
-        
-        if not data.get("success"):
-            print(f"❌ {data.get('message')}\n")
+        if analysis.get("status") == "error":
+            logger.error(f"❌ {analysis.get('message')}")
             return
         
-        # 价格表
-        print("📊 各交易所价格:")
-        print("-"*70)
-        for exchange, price in data["prices"].items():
-            print(f"  {exchange:12} → ${price:>15,.2f}")
+        print(f"\n{'='*60}")
+        print(f"💰 {crypto} 价格汇总")
+        print(f"{'='*60}")
+        print(f"⏰ 更新时间: {analysis['timestamp']}\n")
         
-        # 统计数据
-        stats = data["statistics"]
-        print("\n" + "-"*70)
-        print(f"  最高价格: ${stats['highest']:>15,.2f}  ({stats['highest_exchange']})")
-        print(f"  最低价格: ${stats['lowest']:>15,.2f}  ({stats['lowest_exchange']})")
-        print(f"  平均价格: ${stats['average']:>15,.2f}")
-        print(f"  价差: ${stats['difference']:>15,.2f}  ({stats['difference_rate']:>7.3f}%)")
-        print("-"*70)
+        # 显示各交易所价格
+        for exchange, price in analysis["prices"].items():
+            print(f"  {exchange:12} → ${price:>12,.2f}")
         
-        # 套利机会
-        arb = data["arbitrage_opportunity"]
-        if arb["detected"]:
+        # 显示统计信息
+        print(f"\n{'-'*60}")
+        print(f"  最高价格: ${analysis['max_price']:>12,.2f} ({analysis['max_exchange']})")
+        print(f"  最低价格: ${analysis['min_price']:>12,.2f} ({analysis['min_exchange']})")
+        print(f"  价差: ${analysis['price_diff']:>12,.2f} ({analysis['diff_rate']:.4f}%)")
+        print(f"{'-'*60}")
+        
+        # 套利提示
+        if analysis["arbitrage_possible"]:
             print(f"\n🚨 发现套利机会!")
-            print(f"   {arb['message']}")
+            print(f"   买入: {analysis['min_exchange']} @ ${analysis['min_price']:,.2f}")
+            print(f"   卖出: {analysis['max_exchange']} @ ${analysis['max_price']:,.2f}")
+            print(f"   理论利润率: {analysis['diff_rate']:.4f}%")
         else:
-            print(f"\n✅ {arb['message']}")
+            print(f"\n✅ 暂无明显套利机会 (价差 < 0.1%)")
         
-        print("\n" + "="*70 + "\n")
+        print(f"\n{'='*60}\n")
 
 
-# 使用示例
-if __name__ == "__main__":
-    # 单个加密货币价格对比
-    PriceFetcher.print_price_report("BTC")
-    PriceFetcher.print_price_report("ETH")
-    PriceFetcher.print_price_report("SOL")
-    
-    # 获取原始数据
-    result = PriceFetcher.compare_prices("BTC")
-    print(f"\n📈 BTC 数据: {result}")
+# 全局实例
+price_fetcher = PriceFetcher()

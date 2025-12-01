@@ -1,15 +1,14 @@
 """
 统一的套利管理器
-管理和协调所有套利策略，包括实时价格获取功能
+管理和协调所有套利策略
 """
 
 import time
-from src.utils.logger import setup_logger
-from src.utils.price_fetcher import PriceFetcher
+from src.utils.logger import logger
 from src.config import EXCHANGES, CRYPTOS
 from src.exchanges.binance import BinanceConnector
 from src.exchanges.coinbase import CoinbaseConnector
-from src.strategies.arbitrage import ArbitrageBot
+from src.strategies.arbitrage import ArbitrageStrategy
 from src.strategies.triangle_arbitrage import TriangleArbitrageStrategy
 from src.strategies.stablecoin_arbitrage import StablecoinArbitrageStrategy
 from src.strategies.dex_arbitrage import DEXArbitrageStrategy
@@ -17,12 +16,11 @@ from src.strategies.futures_arbitrage import FuturesArbitrageStrategy
 from src.strategies.cross_chain_arbitrage import CrossChainArbitrageStrategy
 from src.strategies.flash_loan_arbitrage import FlashLoanArbitrageStrategy
 from src.strategies.options_arbitrage import OptionsArbitrageStrategy
-
-logger = setup_logger("unified_manager")
+from src.utils.price_fetcher import price_fetcher
 
 
 class UnifiedArbitrageManager:
-    """统一的套利管理器 - 整合所有套利策略和实时价格获取"""
+    """统一的套利管理器"""
     
     def __init__(self):
         logger.info("🚀 初始化统一套利管理器...")
@@ -39,12 +37,9 @@ class UnifiedArbitrageManager:
             ),
         }
         
-        # 初始化价格获取器
-        self.price_fetcher = PriceFetcher()
-        
         # 初始化各个策略
         self.strategies = {
-            "spot_arbitrage": ArbitrageBot(),
+            "spot_arbitrage": ArbitrageStrategy(self.exchanges),
             "triangle_arbitrage": TriangleArbitrageStrategy(self.exchanges["binance"]),
             "stablecoin_arbitrage": StablecoinArbitrageStrategy(self.exchanges),
             "dex_arbitrage": DEXArbitrageStrategy(),
@@ -52,44 +47,14 @@ class UnifiedArbitrageManager:
             "flash_loan_arbitrage": FlashLoanArbitrageStrategy(),
             "options_arbitrage": OptionsArbitrageStrategy(),
         }
+        
+        # 期货套利需要期货交易所
         # self.strategies["futures_arbitrage"] = FuturesArbitrageStrategy(
         #     self.exchanges["binance"],
         #     futures_exchange
         # )
         
         logger.info("✅ 套利管理器初始化完成")
-    
-    def display_real_time_prices(self, cryptos=None):
-        """
-        显示实时价格对比
-        
-        Args:
-            cryptos: 加密货币列表 (如: ["BTC", "ETH", "SOL"])
-        """
-        if cryptos is None:
-            cryptos = ["BTC", "ETH", "SOL"]
-        
-        logger.info("\n" + "="*70)
-        logger.info("📊 实时价格扫描")
-        logger.info("="*70)
-        
-        for crypto in cryptos:
-            try:
-                data = self.price_fetcher.compare_prices(crypto)
-                
-                if data.get("success"):
-                    stats = data["statistics"]
-                    logger.info(f"\n💰 {crypto}:")
-                    logger.info(f"   最高: ${stats['highest']:,.2f} ({stats['highest_exchange']})")
-                    logger.info(f"   最低: ${stats['lowest']:,.2f} ({stats['lowest_exchange']})")
-                    logger.info(f"   均价: ${stats['average']:,.2f}")
-                    logger.info(f"   价差: {stats['difference_rate']:.3f}%")
-                    
-                    if data["arbitrage_opportunity"]["detected"]:
-                        logger.warning(f"   🚨 套利机会: {data['arbitrage_opportunity']['message']}")
-                    
-            except Exception as e:
-                logger.error(f"   ❌ {crypto} 获取失败: {str(e)}")
     
     def scan_all_opportunities(self):
         """扫描所有套利机会"""
@@ -237,6 +202,86 @@ class UnifiedArbitrageManager:
             
         except Exception as e:
             logger.error(f"❌ 交易执行失败: {str(e)}")
+    
+    # ============ 实时价格功能 ============
+    
+    def get_real_time_prices(self, cryptos=None):
+        """获取实时价格
+        
+        Args:
+            cryptos: 加密货币列表，默认使用配置中的加密货币
+            
+        Returns:
+            价格数据字典
+        """
+        if cryptos is None:
+            cryptos = CRYPTOS
+        
+        logger.info(f"\n📊 获取 {len(cryptos)} 种加密货币的实时价格...")
+        
+        all_prices = price_fetcher.get_all_prices(cryptos)
+        return all_prices
+    
+    def analyze_price_opportunities(self, cryptos=None):
+        """分析价格套利机会
+        
+        Args:
+            cryptos: 加密货币列表
+        """
+        if cryptos is None:
+            cryptos = CRYPTOS
+        
+        logger.info(f"\n🔍 分析 {len(cryptos)} 种加密货币的套利机会...")
+        logger.info("="*60)
+        
+        opportunities_found = []
+        
+        for crypto in cryptos:
+            analysis = price_fetcher.analyze_price_diff(crypto)
+            
+            if analysis.get("status") == "error":
+                continue
+            
+            # 记录有套利机会的加密货币
+            if analysis.get("arbitrage_possible"):
+                opportunities_found.append({
+                    "crypto": crypto,
+                    "diff_rate": analysis.get("diff_rate"),
+                    "buy_exchange": analysis.get("min_exchange"),
+                    "buy_price": analysis.get("min_price"),
+                    "sell_exchange": analysis.get("max_exchange"),
+                    "sell_price": analysis.get("max_price"),
+                })
+                
+                logger.info(f"\n🚨 {crypto} 发现套利机会!")
+                logger.info(f"   差价率: {analysis['diff_rate']:.4f}%")
+                logger.info(f"   买入: {analysis['min_exchange']} @ ${analysis['min_price']:,.2f}")
+                logger.info(f"   卖出: {analysis['max_exchange']} @ ${analysis['max_price']:,.2f}")
+        
+        if opportunities_found:
+            logger.info(f"\n✅ 总共发现 {len(opportunities_found)} 个套利机会")
+        else:
+            logger.info(f"\n✅ 暂无明显套利机会 (价差 < 0.1%)")
+        
+        logger.info("="*60)
+        
+        return opportunities_found
+    
+    def display_all_prices(self, cryptos=None):
+        """显示所有加密货币的价格汇总
+        
+        Args:
+            cryptos: 加密货币列表
+        """
+        if cryptos is None:
+            cryptos = CRYPTOS
+        
+        logger.info(f"\n{'='*60}")
+        logger.info(f"💰 全球加密货币实时价格汇总")
+        logger.info(f"{'='*60}\n")
+        
+        for crypto in cryptos:
+            price_fetcher.display_price_summary(crypto)
 
 
 def main():
@@ -246,6 +291,9 @@ def main():
     
     # 初始化管理器
     manager = UnifiedArbitrageManager()
+    
+    # 启动连续扫描
+    manager.run_continuous(scan_interval=300)  # 每 5 分钟扫描一次
     
     # 启动连续扫描
     manager.run_continuous(scan_interval=300)  # 每 5 分钟扫描一次
