@@ -48,3 +48,4 @@ logs/
 # 数据
 data/
 *.csv
+venv/
