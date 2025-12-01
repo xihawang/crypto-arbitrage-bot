@@ -1,14 +1,15 @@
 """
 统一的套利管理器
-管理和协调所有套利策略
+管理和协调所有套利策略，包括实时价格获取功能
 """
 
 import time
-from src.utils.logger import logger
+from src.utils.logger import setup_logger
+from src.utils.price_fetcher import PriceFetcher
 from src.config import EXCHANGES, CRYPTOS
 from src.exchanges.binance import BinanceConnector
 from src.exchanges.coinbase import CoinbaseConnector
-from src.strategies.arbitrage import ArbitrageStrategy
+from src.strategies.arbitrage import ArbitrageBot
 from src.strategies.triangle_arbitrage import TriangleArbitrageStrategy
 from src.strategies.stablecoin_arbitrage import StablecoinArbitrageStrategy
 from src.strategies.dex_arbitrage import DEXArbitrageStrategy
@@ -17,9 +18,11 @@ from src.strategies.cross_chain_arbitrage import CrossChainArbitrageStrategy
 from src.strategies.flash_loan_arbitrage import FlashLoanArbitrageStrategy
 from src.strategies.options_arbitrage import OptionsArbitrageStrategy
 
+logger = setup_logger("unified_manager")
+
 
 class UnifiedArbitrageManager:
-    """统一的套利管理器"""
+    """统一的套利管理器 - 整合所有套利策略和实时价格获取"""
     
     def __init__(self):
         logger.info("🚀 初始化统一套利管理器...")
@@ -36,9 +39,12 @@ class UnifiedArbitrageManager:
             ),
         }
         
+        # 初始化价格获取器
+        self.price_fetcher = PriceFetcher()
+        
         # 初始化各个策略
         self.strategies = {
-            "spot_arbitrage": ArbitrageStrategy(self.exchanges),
+            "spot_arbitrage": ArbitrageBot(),
             "triangle_arbitrage": TriangleArbitrageStrategy(self.exchanges["binance"]),
             "stablecoin_arbitrage": StablecoinArbitrageStrategy(self.exchanges),
             "dex_arbitrage": DEXArbitrageStrategy(),
@@ -46,14 +52,44 @@ class UnifiedArbitrageManager:
             "flash_loan_arbitrage": FlashLoanArbitrageStrategy(),
             "options_arbitrage": OptionsArbitrageStrategy(),
         }
-        
-        # 期货套利需要期货交易所
         # self.strategies["futures_arbitrage"] = FuturesArbitrageStrategy(
         #     self.exchanges["binance"],
         #     futures_exchange
         # )
         
         logger.info("✅ 套利管理器初始化完成")
+    
+    def display_real_time_prices(self, cryptos=None):
+        """
+        显示实时价格对比
+        
+        Args:
+            cryptos: 加密货币列表 (如: ["BTC", "ETH", "SOL"])
+        """
+        if cryptos is None:
+            cryptos = ["BTC", "ETH", "SOL"]
+        
+        logger.info("\n" + "="*70)
+        logger.info("📊 实时价格扫描")
+        logger.info("="*70)
+        
+        for crypto in cryptos:
+            try:
+                data = self.price_fetcher.compare_prices(crypto)
+                
+                if data.get("success"):
+                    stats = data["statistics"]
+                    logger.info(f"\n💰 {crypto}:")
+                    logger.info(f"   最高: ${stats['highest']:,.2f} ({stats['highest_exchange']})")
+                    logger.info(f"   最低: ${stats['lowest']:,.2f} ({stats['lowest_exchange']})")
+                    logger.info(f"   均价: ${stats['average']:,.2f}")
+                    logger.info(f"   价差: {stats['difference_rate']:.3f}%")
+                    
+                    if data["arbitrage_opportunity"]["detected"]:
+                        logger.warning(f"   🚨 套利机会: {data['arbitrage_opportunity']['message']}")
+                    
+            except Exception as e:
+                logger.error(f"   ❌ {crypto} 获取失败: {str(e)}")
     
     def scan_all_opportunities(self):
         """扫描所有套利机会"""
