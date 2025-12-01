@@ -1,0 +1,7 @@
+numpy
+pandas
+requests
+web3
+ccxt
+dotenv
+pytest
