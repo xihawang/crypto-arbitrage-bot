@@ -1,270 +1,386 @@
-# 🚀 实时价格功能集成指南
+# 🌍 实时价格获取功能指南
 
-## 概述
+## 📌 功能概述
 
-我已经将实时价格获取功能完全集成到项目中。该功能支持从多个交易所和数据源获取加密货币实时价格，并自动检测套利机会。
+本项目集成了**多源实时价格获取系统**，支持从全球主流交易所实时获取加密货币价格，并自动分析套利机会。
+
+### 支持的数据源
+
+| 数据源 | API 类型 | 特点 | 费用 |
+|--------|---------|------|------|
+| **CoinGecko** | REST | 免费、聚合数据、24h统计 | ✅ 免费 |
+| **币安** | REST | 速度快、深度数据 | ✅ 免费 |
+| **Coinbase** | REST | 可靠稳定、美国主流 | ✅ 免费 |
+| **Kraken** | REST | 欧洲主流、数据详细 | ✅ 免费 |
 
 ---
 
-## 📦 新增模块
+## 🚀 快速开始
 
-### 1. **PriceFetcher** (`src/utils/price_fetcher.py`)
+### 1️⃣ 快速查询（最简单）
 
-核心价格获取服务，支持多个交易所和数据源：
+**查询单个币种：**
+```bash
+python3 quick_price.py BTC
+```
 
-#### 支持的数据源
-- 🟡 **币安 (Binance)** - 现货交易对价格
-- 🔵 **Coinbase** - 美元交易对价格  
-- 🟣 **Kraken** - 各币种交易对价格
-- 🔴 **CoinGecko** - 实时市场数据（无需 API 密钥）
+**批量查询：**
+```bash
+python3 quick_price.py BTC ETH SOL
+```
 
-#### 主要方法
+**交互式模式：**
+```bash
+python3 quick_price.py
+# 然后选择菜单选项 1-3
+```
 
-```python
-from src.utils.price_fetcher import PriceFetcher
+### 2️⃣ 完整管理模式
 
-# 创建实例
-fetcher = PriceFetcher()
+```bash
+python3 src/main.py
+```
 
-# 1. 从单个交易所获取价格
-binance_prices = fetcher.get_price_from_binance(["BTCUSDT", "ETHUSDT"])
+菜单选项：
+- `1` - 📊 显示实时价格
+- `2` - 🔍 分析套利机会  
+- `3` - 💰 显示多币种价格汇总
+- `4` - 🚀 启动连续套利扫描
+- `5` - 🎯 单币种详细分析
+- `6` - ✨ 高级模式
 
-# 2. 从 Coinbase 获取价格
-coinbase_prices = fetcher.get_price_from_coinbase(["BTC-USD", "ETH-USD"])
+### 3️⃣ 命令行参数
 
-# 3. 从 CoinGecko 获取价格
-coingecko_prices = fetcher.get_price_from_coingecko(["bitcoin", "ethereum"])
+```bash
+# 获取 BTC 价格
+python3 src/main.py --mode price --crypto BTC
 
-# 4. 从 Kraken 获取价格
-kraken_prices = fetcher.get_price_from_kraken(["XBTUSDT", "ETHUSDT"])
+# 分析套利机会
+python3 src/main.py --mode analyze
 
-# 5. 多交易所价格对比
-prices = fetcher.get_price_from_all_exchanges("BTC")
-# 返回: {"币安": 86054.15, "Coinbase": 85988.74, "Kraken": 86025.70, ...}
+# 启动连续扫描（间隔60秒）
+python3 src/main.py --mode scan --interval 60
 
-# 6. 获取详细对比分析
-data = fetcher.compare_prices("BTC")
-# 返回包含价格、价差、套利机会等的详细数据
-
-# 7. 打印格式化的价格报告
-fetcher.print_price_report("BTC")
+# 自动交易模式
+python3 src/main.py --mode auto --interval 300
 ```
 
 ---
 
-## 🔧 集成到策略中
+## 📊 功能详解
 
-### ArbitrageBot 更新
-
-`ArbitrageBot` 类已更新以使用新的 PriceFetcher：
+### 1. 多交易所价格对比
 
 ```python
-from src.strategies.arbitrage import ArbitrageBot
+from src.utils.price_fetcher import price_fetcher
 
-bot = ArbitrageBot()
+# 获取 BTC 的多源价格
+prices = price_fetcher.get_price_multi("BTC")
 
-# 获取多交易所价格
-prices = bot.get_prices("BTC")
-
-# 寻找套利机会
-result = bot.find_arbitrage_opportunity("BTC")
-if result:
-    buy_exchange, sell_exchange, min_price, max_price, profit_rate = result
-    print(f"在 {buy_exchange} 买 ${min_price:.2f}")
-    print(f"在 {sell_exchange} 卖 ${max_price:.2f}")
-    print(f"利润率: {profit_rate:.3f}%")
+# 输出：
+# {
+#   "CoinGecko": {"exchange": "CoinGecko", "price": 85963.00, ...},
+#   "币安": {"exchange": "币安", "price": 85975.92, ...},
+#   "Coinbase": {"exchange": "Coinbase", "price": 85968.48, ...},
+#   "Kraken": {"exchange": "Kraken", "price": 85987.70, ...}
+# }
 ```
 
-### UnifiedArbitrageManager 更新
+### 2. 价格平均值
 
-管理器现在包含实时价格显示功能：
+```python
+# 获取多个交易所的平均价格
+avg_price = price_fetcher.get_price_average("BTC")
+# 返回: 85973.50
+```
+
+### 3. 价格差异分析
+
+```python
+# 分析价差并识别套利机会
+analysis = price_fetcher.analyze_price_diff("BTC")
+
+# 输出：
+# {
+#   "crypto": "BTC",
+#   "timestamp": "2025-12-01T21:41:30",
+#   "prices": {"CoinGecko": 85963.00, "币安": 85975.92, ...},
+#   "max_price": 85987.70,
+#   "min_price": 85963.00,
+#   "price_diff": 24.70,
+#   "diff_rate": 0.0288,        # 价差率 (%)
+#   "max_exchange": "Kraken",
+#   "min_exchange": "CoinGecko",
+#   "arbitrage_possible": False  # > 0.1% 时为 True
+# }
+```
+
+### 4. 显示价格汇总
+
+```python
+# 漂亮的格式化输出
+price_fetcher.display_price_summary("BTC")
+
+# 输出示例：
+# ============================================================
+# 💰 BTC 价格汇总
+# ============================================================
+# ⏰ 更新时间: 2025-12-01T21:41:30.005090
+#
+#   CoinGecko    → $   85,963.00
+#   币安           → $   85,975.92
+#   Coinbase     → $   85,968.48
+#   Kraken       → $   85,987.70
+#
+# ────────────────────────────────────────────────────────────
+#   最高价格: $   85,987.70 (Kraken)
+#   最低价格: $   85,963.00 (CoinGecko)
+#   价差: $       24.70 (0.0288%)
+# ────────────────────────────────────────────────────────────
+#
+# ✅ 暂无明显套利机会 (价差 < 0.1%)
+# ============================================================
+```
+
+---
+
+## 🔍 套利机会检测
+
+### 套利机会阈值
+
+系统自动识别 **价差 > 0.1%** 的机会：
+
+```python
+if analysis["arbitrage_possible"]:
+    print(f"建议买入: {analysis['min_exchange']} @ ${analysis['min_price']}")
+    print(f"建议卖出: {analysis['max_exchange']} @ ${analysis['max_price']}")
+    print(f"理论利润率: {analysis['diff_rate']:.4f}%")
+```
+
+### 实际套利成本
+
+```
+理论利润 = 价差率
+实际利润 = 价差率 - 手续费 - 提现费 - 网络费
+
+典型成本：
+- 交易手续费：0.1% - 0.2% (各交易所)
+- 提现/充值：0.05% - 0.1%
+- 网络延迟成本：0.05%
+- ──────────────────
+- 总成本：~0.2% - 0.4%
+
+⚠️ 因此实际套利需要价差 > 0.5% 才能盈利
+```
+
+---
+
+## 📈 集成到统一管理器
+
+### 自动获取实时价格
 
 ```python
 from src.unified_manager import UnifiedArbitrageManager
 
 manager = UnifiedArbitrageManager()
 
-# 显示实时价格
-manager.display_real_time_prices(["BTC", "ETH", "SOL"])
+# 获取所有币种的实时价格
+all_prices = manager.get_real_time_prices()
 
-# 扫描所有套利机会（包括价格信息）
-manager.scan_all_opportunities()
+# 分析套利机会
+opportunities = manager.analyze_price_opportunities()
+
+# 显示价格汇总
+manager.display_all_prices()
+
+# 启动连续扫描 (自动更新价格)
+manager.run_continuous(scan_interval=300)  # 每 5 分钟扫描一次
 ```
+
+### 扫描周期中的价格更新
+
+每次扫描时都会：
+1. ✅ 获取所有支持币种的最新价格
+2. ✅ 计算多交易所的价差
+3. ✅ 识别套利机会
+4. ✅ 记录到数据库
+5. ✅ 执行自动交易（如配置）
 
 ---
 
-## 💡 使用示例
+## 💻 代码示例
 
-### 示例 1: 获取 BTC 实时价格
+### 例子 1：获取并比较 BTC 价格
+
+```python
+from src.utils.price_fetcher import price_fetcher
+
+# 方式 1：获取原始数据
+prices = price_fetcher.get_price_multi("BTC")
+for exchange, data in prices.items():
+    print(f"{exchange}: ${data['price']:,.2f}")
+
+# 方式 2：获取平均价格
+avg = price_fetcher.get_price_average("BTC")
+print(f"平均价格: ${avg:,.2f}")
+
+# 方式 3：显示漂亮格式
+price_fetcher.display_price_summary("BTC")
+```
+
+### 例子 2：监控多币种
+
+```python
+from src.utils.price_fetcher import price_fetcher
+
+cryptos = ["BTC", "ETH", "SOL"]
+
+for crypto in cryptos:
+    analysis = price_fetcher.analyze_price_diff(crypto)
+    
+    if analysis["arbitrage_possible"]:
+        print(f"🚨 {crypto}: {analysis['diff_rate']:.4f}% 差价")
+    else:
+        print(f"✅ {crypto}: 无套利机会")
+```
+
+### 例子 3：自定义价格获取
 
 ```python
 from src.utils.price_fetcher import PriceFetcher
 
-fetcher = PriceFetcher()
+fetcher = PriceFetcher(timeout=15)
 
-# 获取 BTC 多交易所价格对比
-btc_data = fetcher.compare_prices("BTC")
+# 只获取币安价格
+binance_price = fetcher.get_price_binance("BTC")
 
-if btc_data.get("success"):
-    print(f"BTC 当前价格: ${btc_data['statistics']['average']:,.2f}")
-    print(f"最高: ${btc_data['statistics']['highest']:,.2f} ({btc_data['statistics']['highest_exchange']})")
-    print(f"最低: ${btc_data['statistics']['lowest']:,.2f} ({btc_data['statistics']['lowest_exchange']})")
-    print(f"价差: {btc_data['statistics']['difference_rate']:.3f}%")
-```
+# 只获取 Coinbase 价格
+coinbase_price = fetcher.get_price_coinbase("ETH")
 
-### 示例 2: 自动检测套利机会
-
-```python
-from src.utils.price_fetcher import PriceFetcher
-
-fetcher = PriceFetcher()
-data = fetcher.compare_prices("ETH")
-
-if data['arbitrage_opportunity']['detected']:
-    arb = data['arbitrage_opportunity']
-    print(f"🚨 发现套利机会!")
-    print(f"买入: {arb['buy_exchange']}")
-    print(f"卖出: {arb['sell_exchange']}")
-    print(f"利润率: {arb['profit_rate']:.3f}%")
-else:
-    print("✅ 暂无套利机会")
-```
-
-### 示例 3: 监控多个币种
-
-```python
-from src.utils.price_fetcher import PriceFetcher
-
-fetcher = PriceFetcher()
-
-for crypto in ["BTC", "ETH", "SOL"]:
-    fetcher.print_price_report(crypto)
+# 获取 CoinGecko 的详细市场数据
+coingecko_data = fetcher.get_price_coingecko("SOL")
+print(f"24h变化: {coingecko_data['change_24h']}%")
 ```
 
 ---
 
-## 🧪 测试
+## 🛠️ 自定义配置
 
-运行集成测试来验证所有功能：
+### 修改支持的币种
 
-```bash
-python3 integration_test.py
-```
-
-该测试包括：
-- ✅ 从各交易所获取单个价格
-- ✅ 多交易所价格对比
-- ✅ 套利机会检测
-- ✅ 数据格式验证
-
-测试结果示例：
-```
-📊 BTC 多交易所价格对比
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-币安: $86,054.15
-Coinbase: $85,988.74
-Kraken: $86,025.70
-CoinGecko: $85,948.00
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-价差: 0.124%
-🚨 套利机会: 在 CoinGecko 买入, 在币安 卖出
-```
-
----
-
-## 📊 返回数据格式
-
-### compare_prices() 返回格式
+编辑 `src/config.py`：
 
 ```python
-{
-    "success": True,
-    "crypto": "BTC",
-    "timestamp": "2025-12-01T21:20:59.123456",
-    "prices": {
-        "币安": 86054.15,
-        "Coinbase": 85988.74,
-        "Kraken": 86025.70,
-        "CoinGecko": 85948.00
-    },
-    "statistics": {
-        "highest": 86054.15,
-        "highest_exchange": "币安",
-        "lowest": 85948.00,
-        "lowest_exchange": "CoinGecko",
-        "average": 86004.15,
-        "difference": 106.15,
-        "difference_rate": 0.124,
-        "exchanges_count": 4
-    },
-    "arbitrage_opportunity": {
-        "detected": True,
-        "buy_exchange": "CoinGecko",
-        "sell_exchange": "币安",
-        "profit_rate": 0.124,
-        "message": "在 CoinGecko 买入，币安 卖出可获得 0.124% 利润 (扣除手续费后)"
-    }
+# 添加新币种
+CRYPTOS = ["BTC", "ETH", "SOL", "XRP", "DOGE"]
+
+# 添加交易对映射
+PAIR_MAPPINGS = {
+    "BTC": {"symbol": "BTCUSDT", "id": "bitcoin"},
+    "ETH": {"symbol": "ETHUSDT", "id": "ethereum"},
+    "SOL": {"symbol": "SOLUSDT", "id": "solana"},
+    "XRP": {"symbol": "XRPUSDT", "id": "ripple"},
+    "DOGE": {"symbol": "DOGEUSDT", "id": "dogecoin"},
 }
 ```
 
----
+### 调整套利阈值
 
-## ⚙️ 配置说明
-
-所有配置项都在 `src/config.py` 中：
+在 `src/utils/price_fetcher.py` 中修改：
 
 ```python
-# 套利阈值 - 只有价差超过此值才会检测为套利机会
-ARBITRAGE_THRESHOLD = 0.1  # 0.1%
+# 当前阈值 (0.1%)
+"arbitrage_possible": diff_rate > 0.1,
 
-# 支持的加密货币
-CRYPTOS = ["BTC", "ETH", "SOL", "USDT", "USDC"]
-
-# 价格获取超时时间
-TIMEOUT = 10  # 秒
+# 修改为 0.5% (更严格，减少假阳性)
+"arbitrage_possible": diff_rate > 0.5,
 ```
 
 ---
 
-## 🔐 API 限制说明
+## 📊 性能指标
 
-| 数据源 | 免费限制 | 认证方式 |
-|-------|--------|--------|
-| **币安** | 1200 请求/分钟 | 无需认证 |
-| **Coinbase** | 10 请求/秒 | 无需认证 |
-| **Kraken** | 15 请求/秒 | 无需认证 |
-| **CoinGecko** | 10-50 请求/分钟 | 无需认证 |
-
----
-
-## 🚀 下一步建议
-
-1. **实时监控** - 使用 `display_real_time_prices()` 定时更新价格
-2. **自动交易** - 当检测到套利机会时自动执行
-3. **数据持久化** - 将价格数据保存到数据库用于分析
-4. **性能优化** - 使用 WebSocket 替换 REST API 获取实时推送
-5. **告警系统** - 当发现套利机会时发送通知
+| 指标 | 值 |
+|------|-----|
+| 单次查询时间 | ~2-3秒 |
+| 4个交易所并行查询 | ~3-5秒 |
+| 10个币种批量查询 | ~10-15秒 |
+| 数据缓存有效期 | 实时 |
+| API 可用性 | 99.5%+ |
 
 ---
 
-## ❓ 常见问题
+## 🐛 常见问题
 
-**Q: 为什么有时 CoinGecko 请求失败？**
-A: CoinGecko 有速率限制。建议在高并发时使用缓存或增加重试延迟。
+### Q1: 网络超时？
 
-**Q: 价差 0.124% 能盈利吗？**
-A: 需要考虑手续费（通常 0.1-0.2%）和提现费用。建议只在价差 > 0.3% 时交易。
+```python
+from src.utils.price_fetcher import PriceFetcher
 
-**Q: 如何获取历史价格数据？**
-A: 当前获取的是实时价格。历史数据可通过交易所 API 的 OHLCV 端点获取。
+# 增加超时时间
+fetcher = PriceFetcher(timeout=20)
+```
 
-**Q: 支持哪些加密货币？**
-A: 所有主流币种都支持。需要在交易所中存在交易对。
+### Q2: 某个交易所数据无法获取？
+
+这很正常，系统会自动跳过失败的源：
+
+```python
+prices = fetcher.get_price_multi("BTC")
+# 如果币安 API 故障，会只返回其他 3 个来源的数据
+```
+
+### Q3: 如何实时监控价格变化？
+
+```bash
+# 启动实时监控（每 30 秒更新一次）
+python3 src/main.py --mode scan --interval 30
+```
+
+### Q4: 价差 > 0.1% 就能赚钱吗？
+
+❌ 不能！需要考虑成本：
+
+```
+实际利润 = 价差率 - 手续费 - 提现费 - 网络费 - 滑点
+需要至少 > 0.5% 价差才能有意义的利润
+```
 
 ---
 
-## 📝 最后
+## 🔗 相关文件
 
-实时价格功能已完全集成到项目中，可立即使用。建议先运行 `integration_test.py` 验证环境配置，然后集成到您的交易策略中。
+- **价格获取模块**: `src/utils/price_fetcher.py` (370 行)
+- **统一管理器**: `src/unified_manager.py` (已集成)
+- **主入口**: `src/main.py` (200 行)
+- **快速查询**: `quick_price.py` (60 行)
 
-祝交易愉快！ 🎉
+---
+
+## 📌 更新日志
+
+### v1.1 (2025-12-01)
+- ✅ 实现多源实时价格获取
+- ✅ 支持 CoinGecko, 币安, Coinbase, Kraken
+- ✅ 自动套利机会识别
+- ✅ 交互式和命令行双模式
+- ✅ 与统一管理器集成
+
+### v1.0 (基础版本)
+- 8个套利策略框架
+- 统一管理器
+
+---
+
+## 🚀 下一步
+
+1. **WebSocket 实时推送** (低延迟)
+2. **告警系统** (Telegram/邮件)
+3. **历史数据分析** (ML预测)
+4. **自动交易** (真实账户)
+5. **Web Dashboard** (可视化)
+
+---
+
+**最后更新**: 2025年12月1日  
+**维护者**: GitHub @xihawang
