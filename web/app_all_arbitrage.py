@@ -1,0 +1,466 @@
+"""
+全能 Web UI - 展示所有套利机会
+支持多种套利策略的实时监控和管理
+访问地址: http://localhost:5000
+"""
+
+from flask import Flask, render_template, jsonify, request
+from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_cors import CORS
+import json
+from datetime import datetime, timedelta
+import threading
+import time
+import sys
+import os
+from collections import deque, defaultdict
+
+# 添加项目根目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.utils.multi_source_price_fetcher import multi_source_price_fetcher
+from src.notifications.alert_manager import alert_manager
+from src.trading.auto_executor import auto_executor
+from src.utils.logger import logger
+from src.config import CRYPTOS, SCAN_INTERVAL, AUTO_TRADE_ENABLED, ALERT_ENABLED, EXCHANGES
+import asyncio
+
+app = Flask(__name__, template_folder='templates')
+app.config['SECRET_KEY'] = 'crypto-arbitrage-secret-key-2024'
+CORS(app)
+
+# 初始化 SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
+
+# ============ 全局变量 ============
+
+# 实时数据
+latest_prices = {}
+latest_opportunities = defaultdict(list)  # {strategy_name: [opportunities]}
+price_history = {}  # 存储历史价格
+scan_status = "idle"
+last_update = None
+connected_clients = 0
+
+# 策略列表
+STRATEGIES = [
+    "spot_arbitrage",
+    "triangle_arbitrage", 
+    "stablecoin_arbitrage",
+    "dex_arbitrage",
+    "cross_chain_arbitrage",
+    "flash_loan_arbitrage",
+    "options_arbitrage",
+    "futures_arbitrage"
+]
+
+# 初始化历史数据存储
+for crypto in CRYPTOS:
+    price_history[crypto] = deque(maxlen=100)
+
+# 初始化机器人
+manager = None
+
+def init_system():
+    """初始化系统组件"""
+    global manager
+    try:
+        # 不再使用旧的UnifiedArbitrageManager
+        manager = None
+        logger.info("✅ 系统初始化成功 - 使用多数据源API价格获取器")
+        return True
+    except Exception as e:
+        logger.error(f"❌ 系统初始化失败: {str(e)}")
+        return False
+
+
+# ============ 实时价格数据收集 ============
+
+def collect_prices():
+    """后台收集实时价格"""
+    global latest_prices, last_update
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    while True:
+        try:
+            logger.info("📊 正在收集实时价格...")
+
+            # 获取所有价格数据
+            prices_data = multi_source_price_fetcher.fetch_all_prices(CRYPTOS)
+
+            # 更新 latest_prices
+            latest_prices = {}
+            for crypto in CRYPTOS:
+                if crypto in prices_data and prices_data[crypto]:
+                    latest_prices[crypto] = prices_data[crypto]  # 直接存储价格数据
+
+                    # 保存到历史记录（使用平均价格）
+                    if prices_data[crypto]:
+                        avg_price = sum(prices_data[crypto].values()) / len(prices_data[crypto])
+                        price_history[crypto].append({
+                            "timestamp": datetime.now().isoformat(),
+                            "price": avg_price
+                        })
+
+            last_update = datetime.now().isoformat()
+
+            # 广播更新给所有连接的客户端
+            socketio.emit('price_update', {
+                'prices': latest_prices,
+                'timestamp': last_update
+            }, to='*')
+            
+            logger.info(f"✅ 价格更新完成，已发送给 {connected_clients} 个客户端")
+            
+            # 每 30 秒更新一次
+            time.sleep(30)
+            
+        except Exception as e:
+            logger.error(f"❌ 价格收集错误: {str(e)}")
+            time.sleep(30)
+
+
+# ============ 套利机会扫描 ============
+
+def scan_opportunities():
+    """后台扫描套利机会"""
+    global scan_status, latest_opportunities, latest_prices
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    while True:
+        try:
+            scan_status = "scanning"
+            logger.info("🔍 开始扫描套利机会...")
+
+            # 获取最新价格并分析机会
+            if latest_prices:
+                opportunities = multi_source_price_fetcher.get_all_opportunities(CRYPTOS, latest_prices)
+
+                if opportunities:
+                    latest_opportunities["spot_arbitrage"] = opportunities
+                    logger.info(f"✅ 现货套利: 发现 {len(opportunities)} 个机会")
+
+                    # 发送告警
+                    if ALERT_ENABLED and opportunities:
+                        for opportunity in opportunities[:3]:  # 只发送前3个最佳机会
+                            loop.run_until_complete(alert_manager.send_arbitrage_alert(opportunity))
+
+                # 广播更新
+                socketio.emit('opportunities_update', {
+                    'opportunities': dict(latest_opportunities),
+                    'timestamp': datetime.now().isoformat()
+                }, to='*')
+
+            scan_status = "idle"
+            logger.info(f"✅ 扫描完成，已发送给 {connected_clients} 个客户端")
+
+            # 每 30 秒扫描一次
+            time.sleep(30)
+            
+        except Exception as e:
+            logger.error(f"❌ 套利机会扫描错误: {str(e)}")
+            scan_status = "error"
+            time.sleep(60)
+
+
+# ============ Flask 路由 ============
+
+@app.route('/')
+def index():
+    """主页"""
+    return render_template('index_all_arbitrage.html')
+
+
+@app.route('/api/prices')
+def get_prices():
+    """获取实时价格 API"""
+    return jsonify({
+        'prices': latest_prices,
+        'timestamp': last_update
+    })
+
+
+@app.route('/api/opportunities')
+def get_opportunities():
+    """获取所有套利机会 API"""
+    return jsonify({
+        'opportunities': dict(latest_opportunities),
+        'status': scan_status,
+        'timestamp': datetime.now().isoformat()
+    })
+
+
+@app.route('/api/opportunities/<strategy>')
+def get_strategy_opportunities(strategy):
+    """获取特定策略的套利机会"""
+    if strategy in latest_opportunities:
+        return jsonify({
+            'strategy': strategy,
+            'opportunities': latest_opportunities[strategy],
+            'count': len(latest_opportunities[strategy]),
+            'timestamp': datetime.now().isoformat()
+        })
+    else:
+        return jsonify({'error': f'策略 {strategy} 未找到'}), 404
+
+
+@app.route('/api/price-history/<crypto>')
+def get_price_history(crypto):
+    """获取价格历史"""
+    if crypto in price_history:
+        return jsonify({
+            'crypto': crypto,
+            'history': list(price_history[crypto]),
+            'count': len(price_history[crypto])
+        })
+    else:
+        return jsonify({'error': f'加密货币 {crypto} 未找到'}), 404
+
+
+@app.route('/api/price-trend/<crypto>')
+def get_price_trend(crypto):
+    """获取价格趋势分析"""
+    if crypto in CRYPTOS:
+        try:
+            trend = live_market_price_fetcher.get_price_trend(crypto, 60)  # 60分钟趋势
+            return jsonify(trend)
+        except Exception as e:
+            return jsonify({'error': f'获取趋势失败: {str(e)}'}), 500
+    else:
+        return jsonify({'error': f'加密货币 {crypto} 未找到'}), 404
+
+
+@app.route('/api/market-overview')
+def get_market_overview():
+    """获取市场总览"""
+    overview = {
+        'data_source': 'multi_source_api',
+        'description': '多数据源API市场价格数据 (Binance, Coinbase, CryptoCompare, CoinGecko)',
+        'last_update': last_update,
+        'market_baselines': {
+            'BTC': '~$102,500',
+            'ETH': '~$3,850',
+            'SOL': '~$248',
+            'USDT': '~$1.001',
+            'USDC': '~$1.000'
+        },
+        'supported_exchanges': [
+            {'name': 'Binance', 'region': 'Global'},
+            {'name': 'Coinbase', 'region': 'US/Europe'},
+            {'name': 'OKX', 'region': 'Asia'},
+            {'name': 'Bybit', 'region': 'Global'},
+            {'name': 'Bitget', 'region': 'Asia'},
+            {'name': 'Kraken', 'region': 'US/Europe'}
+        ],
+        'features': [
+            '实时价格更新',
+            '多交易所套利检测',
+            '趋势分析',
+            '智能告警',
+            '自动交易模拟'
+        ]
+    }
+    return jsonify(overview)
+
+
+@app.route('/api/stats')
+def get_stats():
+    """获取统计数据"""
+    total_opportunities = sum(len(opps) for opps in latest_opportunities.values())
+
+    stats = {
+        'total_opportunities': total_opportunities,
+        'strategies_count': len(STRATEGIES),
+        'cryptos_count': len(CRYPTOS),
+        'connected_clients': connected_clients,
+        'scan_status': scan_status,
+        'last_update': last_update,
+        'data_source': 'multi_source_api',
+        'market_data_description': '多数据源API市场价格数据 (Binance, Coinbase, CryptoCompare, CoinGecko)',
+        'opportunities_by_strategy': {
+            strategy: len(latest_opportunities.get(strategy, []))
+            for strategy in STRATEGIES
+        }
+    }
+
+    return jsonify(stats)
+
+
+@app.route('/api/strategy/<strategy>')
+def get_strategy_info(strategy):
+    """获取策略信息"""
+    strategy_info = {
+        'spot_arbitrage': {
+            'name': '现货套利',
+            'description': '在不同交易所的价格差异中获利',
+            'risk': '低',
+            'frequency': '高',
+            'min_profit_rate': 0.2
+        },
+        'triangle_arbitrage': {
+            'name': '三角套利',
+            'description': '利用三个交易对的价格不一致',
+            'risk': '中',
+            'frequency': '中',
+            'min_profit_rate': 0.5
+        },
+        'stablecoin_arbitrage': {
+            'name': '稳定币套利',
+            'description': '利用稳定币之间的汇率差异',
+            'risk': '低',
+            'frequency': '中',
+            'min_profit_rate': 0.1
+        },
+        'dex_arbitrage': {
+            'name': 'DEX 套利',
+            'description': '在去中心化交易所间套利',
+            'risk': '中',
+            'frequency': '低',
+            'min_profit_rate': 0.5
+        },
+        'cross_chain_arbitrage': {
+            'name': '跨链套利',
+            'description': '利用不同区块链间的价格差异',
+            'risk': '中',
+            'frequency': '低',
+            'min_profit_rate': 1.0
+        },
+        'flash_loan_arbitrage': {
+            'name': '闪电贷套利',
+            'description': '使用闪电贷进行无本套利',
+            'risk': '高',
+            'frequency': '低',
+            'min_profit_rate': 0.3
+        },
+        'options_arbitrage': {
+            'name': '期权套利',
+            'description': '利用期权市场的定价差异',
+            'risk': '高',
+            'frequency': '低',
+            'min_profit_rate': 1.0
+        },
+        'futures_arbitrage': {
+            'name': '期货套利',
+            'description': '现货-期货价差套利',
+            'risk': '中',
+            'frequency': '高',
+            'min_profit_rate': 0.2
+        }
+    }
+    
+    if strategy in strategy_info:
+        return jsonify(strategy_info[strategy])
+    else:
+        return jsonify({'error': f'策略 {strategy} 未找到'}), 404
+
+
+@app.route('/api/manual-scan', methods=['POST'])
+def manual_scan():
+    """手动触发一次扫描"""
+    if manager:
+        threading.Thread(target=lambda: manager.scan_all_opportunities()).start()
+        return jsonify({'status': 'scanning', 'message': '已启动手动扫描'})
+    else:
+        return jsonify({'error': '管理器未初始化'}), 500
+
+
+# ============ WebSocket 事件 ============
+
+@socketio.on('connect')
+def handle_connect():
+    """客户端连接"""
+    global connected_clients
+    connected_clients += 1
+    logger.info(f"✅ 客户端已连接 (总计: {connected_clients})")
+    
+    emit('connection_response', {
+        'data': '已连接到套利监控系统',
+        'status': 'connected'
+    })
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """客户端断开连接"""
+    global connected_clients
+    connected_clients -= 1
+    logger.info(f"❌ 客户端已断开连接 (总计: {connected_clients})")
+
+
+@socketio.on('request_prices')
+def handle_price_request():
+    """客户端请求价格数据"""
+    emit('price_data', {
+        'prices': latest_prices,
+        'timestamp': datetime.now().isoformat()
+    })
+
+
+@socketio.on('request_opportunities')
+def handle_opportunities_request():
+    """客户端请求套利机会"""
+    emit('opportunities_data', {
+        'opportunities': dict(latest_opportunities),
+        'timestamp': datetime.now().isoformat()
+    })
+
+
+@socketio.on('request_strategy_details')
+def handle_strategy_details(data):
+    """客户端请求策略详情"""
+    strategy = data.get('strategy')
+    emit('strategy_details', {
+        'strategy': strategy,
+        'opportunities': latest_opportunities.get(strategy, []),
+        'count': len(latest_opportunities.get(strategy, []))
+    })
+
+
+# ============ 启动函数 ============
+
+def start_background_tasks():
+    """启动后台任务"""
+    logger.info("🚀 启动后台任务线程...")
+    
+    # 价格收集线程
+    price_thread = threading.Thread(target=collect_prices, daemon=True)
+    price_thread.start()
+    logger.info("✅ 价格收集线程已启动")
+    
+    # 机会扫描线程
+    scan_thread = threading.Thread(target=scan_opportunities, daemon=True)
+    scan_thread.start()
+    logger.info("✅ 机会扫描线程已启动")
+
+
+def main():
+    """主函数"""
+    logger.info("="*60)
+    logger.info("🤖 启动全能 Web UI 仪表板 - 真实实时价格版")
+    logger.info("💰 数据来源: 多数据源API (Binance, Coinbase, CryptoCompare, CoinGecko)")
+    logger.info("="*60)
+    
+    # 初始化管理器
+    if not init_system():
+        logger.warning("⚠️  管理器初始化失败，部分功能不可用")
+    
+    # 启动后台任务
+    start_background_tasks()
+    
+    # 启动 Web 服务
+    logger.info("\n")
+    logger.info("📡 Web 服务启动参数:")
+    logger.info(f"  地址: http://localhost:5000")
+    logger.info(f"  调试模式: OFF")
+    logger.info(f"  WebSocket: 启用")
+    logger.info("\n")
+    
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
+
+
+if __name__ == '__main__':
+    main()
