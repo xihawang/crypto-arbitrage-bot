@@ -351,6 +351,337 @@
             max-height: 100%;
         }
 
+        /* 交易面板样式 */
+        .trading-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .trading-mode-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            border-radius: 8px;
+        }
+
+        .trading-mode-selector label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .trading-mode-selector select {
+            padding: 8px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            background: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        .trading-mode-selector select:hover {
+            border-color: #667eea;
+        }
+
+        .mode-indicator {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .trading-stats {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        .trading-stats .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .trading-stats .stat-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .trading-stats .stat-value {
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .opportunity-actions {
+            margin-top: 20px;
+        }
+
+        .opportunity-actions h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .opportunity-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .trade-opportunity-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .trade-opportunity-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .trade-opportunity-card .opportunity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .trade-opportunity-card .crypto-symbol {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .trade-opportunity-card .profit-rate {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .profit-rate.low {
+            background: #fbbf24;
+            color: #92400e;
+        }
+
+        .profit-rate.medium {
+            background: #fb923c;
+            color: #ea580c;
+        }
+
+        .profit-rate.high {
+            background: #ef4444;
+            color: #dc2626;
+        }
+
+        .trade-opportunity-card .opportunity-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .trade-opportunity-card .trade-button {
+            margin-top: 12px;
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .trade-opportunity-card .trade-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .trade-opportunity-card .trade-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .orders-container {
+            max-height: 300px;
+        }
+
+        .order-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .order-card .order-info {
+            flex: 1;
+        }
+
+        .order-card .order-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .order-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .order-status.submitted {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .order-status.filled {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .order-status.cancelled {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .order-card .order-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .order-card .cancel-button {
+            padding: 4px 8px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .history-container {
+            max-height: 400px;
+        }
+
+        .history-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .history-filters select {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: white;
+        }
+
+        .history-filters button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .execution-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .execution-card .execution-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .execution-card .crypto-info {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .execution-card .execution-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .execution-status.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .execution-status.failed {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .execution-status.executing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .execution-card .execution-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .execution-card .profit-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 4px;
+        }
+
+        .execution-card .profit-loss {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .profit {
+            color: #059669;
+        }
+
+        .loss {
+            color: #dc2626;
+        }
+
         button {
             padding: 10px 20px;
             background: #667eea;
@@ -566,12 +897,85 @@
             </div>
         </div>
 
+        <!-- 交易执行面板 -->
+        <div class="panel" style="margin-bottom: 20px;">
+            <div class="panel-title">💼 交易执行面板</div>
+
+            <div class="trading-controls">
+                <div class="trading-mode-selector">
+                    <label>交易模式:</label>
+                    <select id="tradingMode" onchange="updateTradingMode()">
+                        <option value="simulation">🎮 模拟交易</option>
+                        <option value="dry_run">🧪 试运行</option>
+                        <option value="live">⚠️ 实盘交易</option>
+                    </select>
+                    <span class="mode-indicator" id="modeIndicator">🎮</span>
+                </div>
+
+                <div class="trading-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">总收益:</span>
+                        <span class="stat-value" id="totalProfit">$0.00</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">成功率:</span>
+                        <span class="stat-value" id="successRate">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">执行次数:</span>
+                        <span class="stat-value" id="totalExecutions">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="opportunity-actions">
+                <h3>可用套利机会</h3>
+                <div id="tradingOpportunities" class="opportunity-grid">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⏳</div>
+                        <div>加载交易机会中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 活跃订单 -->
+        <div class="panel" style="margin-bottom: 20px;">
+            <div class="panel-title">📋 活跃订单</div>
+            <div class="orders-container scroll" id="activeOrders">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div>暂无活跃订单</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 交易历史 -->
+        <div class="panel" style="margin-bottom: 20px;">
+            <div class="panel-title">📈 交易历史</div>
+            <div class="history-filters">
+                <select id="historyLimit" onchange="updateTradingHistory()">
+                    <option value="20">最近20条</option>
+                    <option value="50">最近50条</option>
+                    <option value="100">最近100条</option>
+                    <option value="200">最近200条</option>
+                </select>
+                <button onclick="updateTradingHistory()">刷新</button>
+            </div>
+            <div class="history-container scroll" id="tradingHistory">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <div>暂无交易历史</div>
+                </div>
+            </div>
+        </div>
+
         <!-- 套利机会详情 -->
         <div class="panel" style="margin-bottom: 20px;">
             <div class="panel-title">🎯 套利机会详情</div>
-            
+
             <div class="strategy-tabs" id="strategyTabs"></div>
-            
+
             <div class="opportunity-list scroll" id="opportunitiesList">
                 <div class="empty-state">
                     <div class="empty-state-icon">⏳</div>
@@ -635,6 +1039,399 @@
             console.log('服务器:', data.data);
         });
 
+        // 交易执行WebSocket事件
+        socket.on('trade_execution', (data) => {
+            console.log('📡 交易执行更新:', data);
+
+            // 刷新交易相关数据
+            loadTradingStatistics();
+            loadActiveOrders();
+            loadTradingHistory();
+
+            // 显示通知
+            const execution = data.execution;
+            if (execution.status === 'completed') {
+                showNotification(`✅ 套利交易完成: ${execution.crypto} 利润 $${execution.actual_profit.toFixed(2)}`, 'success');
+            } else if (execution.status === 'failed') {
+                showNotification(`❌ 套利交易失败: ${execution.crypto}`, 'error');
+            } else {
+                showNotification(`🔄 交易状态更新: ${execution.crypto} - ${execution.status}`, 'info');
+            }
+        });
+
+        // 订单取消事件
+        socket.on('order_cancelled', (data) => {
+            console.log('📡 订单取消通知:', data);
+            showNotification(`❌ 订单已取消: ${data.order_id}`, 'info');
+            loadActiveOrders();
+        });
+
+        // ============ 交易面板功能 ============
+
+        let currentTradingMode = 'simulation';
+        let tradingStats = {};
+        let activeOrders = [];
+        let tradingHistory = [];
+
+        function initTradingPanel() {
+            console.log('🎯 初始化交易面板...');
+
+            // 加载交易模式
+            loadTradingMode();
+
+            // 加载交易统计
+            loadTradingStatistics();
+
+            // 加载活跃订单
+            loadActiveOrders();
+
+            // 加载交易历史
+            loadTradingHistory();
+
+            // 设置定时刷新
+            setInterval(() => {
+                loadTradingStatistics();
+                loadActiveOrders();
+                loadTradingHistory();
+            }, 10000); // 每10秒刷新一次
+
+            console.log('✅ 交易面板初始化完成');
+        }
+
+        function loadTradingMode() {
+            fetch('/api/trading/mode')
+                .then(response => response.json())
+                .then(data => {
+                    currentTradingMode = data.mode;
+                    const modeSelect = document.getElementById('tradingMode');
+                    if (modeSelect) {
+                        modeSelect.value = currentTradingMode;
+                        updateTradingModeDisplay(data.mode);
+                    }
+                    console.log(`📊 当前交易模式: ${currentTradingMode}`);
+                })
+                .catch(error => {
+                    console.error('❌ 加载交易模式失败:', error);
+                });
+        }
+
+        function updateTradingMode() {
+            const modeSelect = document.getElementById('tradingMode');
+            const newMode = modeSelect.value;
+
+            if (newMode === 'live') {
+                // 实盘交易警告
+                if (!confirm('⚠️ 切换到实盘交易模式将使用真实资金!\n\n确认要继续吗?')) {
+                    modeSelect.value = currentTradingMode;
+                    return;
+                }
+            }
+
+            fetch('/api/trading/mode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ mode: newMode })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentTradingMode = newMode;
+                    updateTradingModeDisplay(newMode);
+                    showNotification(data.message, 'success');
+                    console.log(`🔄 交易模式已切换为: ${newMode}`);
+                } else {
+                    modeSelect.value = currentTradingMode;
+                    showNotification('切换交易模式失败', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('❌ 切换交易模式失败:', error);
+                modeSelect.value = currentTradingMode;
+                showNotification('切换交易模式失败', 'error');
+            });
+        }
+
+        function updateTradingModeDisplay(mode) {
+            const modeIndicator = document.getElementById('tradingModeIndicator');
+            if (!modeIndicator) return;
+
+            const modeConfig = {
+                'simulation': { icon: '🎮', text: '模拟交易', class: 'simulation' },
+                'dry_run': { icon: '🧪', text: '试运行', class: 'dry-run' },
+                'live': { icon: '⚠️', text: '实盘交易', class: 'live' }
+            };
+
+            const config = modeConfig[mode] || modeConfig['simulation'];
+            modeIndicator.innerHTML = `${config.icon} ${config.text}`;
+            modeIndicator.className = `trading-mode-indicator ${config.class}`;
+        }
+
+        function executeTrade(opportunity) {
+            console.log('🎯 执行套利交易:', opportunity);
+
+            // 确认执行
+            const confirmMessage = `确认执行套利交易?\n\n` +
+                `币种: ${opportunity.crypto}\n` +
+                `买入: ${opportunity.buy_exchange} ($${opportunity.buy_price})\n` +
+                `卖出: ${opportunity.sell_exchange} ($${opportunity.sell_price})\n` +
+                `预期利润: $${opportunity.potential_profit}\n` +
+                `模式: ${currentTradingMode === 'simulation' ? '模拟' : currentTradingMode === 'dry_run' ? '试运行' : '实盘'}`;
+
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            // 禁用执行按钮
+            const executeBtn = document.getElementById(`execute-${opportunity.crypto}-${opportunity.buy_exchange}-${opportunity.sell_exchange}`);
+            if (executeBtn) {
+                executeBtn.disabled = true;
+                executeBtn.innerHTML = '⏳ 执行中...';
+            }
+
+            fetch('/api/trading/execute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    opportunity_data: opportunity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(`套利交易执行${data.message}`, 'success');
+                    console.log('✅ 套利交易执行成功:', data.execution);
+
+                    // 刷新相关数据
+                    loadActiveOrders();
+                    loadTradingHistory();
+                    loadTradingStatistics();
+
+                    // 3秒后刷新机会列表
+                    setTimeout(() => {
+                        fetchOpportunities();
+                    }, 3000);
+                } else {
+                    showNotification(`执行失败: ${data.error}`, 'error');
+                    console.error('❌ 套利交易执行失败:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('❌ 执行套利交易失败:', error);
+                showNotification('执行套利交易失败', 'error');
+            })
+            .finally(() => {
+                // 恢复执行按钮
+                if (executeBtn) {
+                    executeBtn.disabled = false;
+                    executeBtn.innerHTML = '🎯 执行套利';
+                }
+            });
+        }
+
+        function loadTradingStatistics() {
+            fetch('/api/trading/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    tradingStats = data;
+                    updateTradingStatsDisplay(data);
+                    console.log('📊 交易统计已更新:', data);
+                })
+                .catch(error => {
+                    console.error('❌ 加载交易统计失败:', error);
+                });
+        }
+
+        function updateTradingStatsDisplay(stats) {
+            // 更新总体统计
+            const totalProfitEl = document.getElementById('totalProfit');
+            if (totalProfitEl) {
+                totalProfitEl.textContent = `$${(stats.overall_stats?.total_profit || 0).toFixed(2)}`;
+            }
+
+            const successRateEl = document.getElementById('successRate');
+            if (successRateEl) {
+                successRateEl.textContent = `${((stats.overall_stats?.success_rate || 0) * 100).toFixed(1)}%`;
+            }
+
+            const totalExecutionsEl = document.getElementById('totalExecutions');
+            if (totalExecutionsEl) {
+                totalExecutionsEl.textContent = stats.overall_stats?.total_executions || 0;
+            }
+
+            // 更新最近7天统计
+            if (stats.recent_7days) {
+                updateRecentStats(stats.recent_7days);
+            }
+        }
+
+        function updateRecentStats(recentData) {
+            const recentProfitEl = document.getElementById('recentProfit');
+            if (recentProfitEl) {
+                const totalProfit = Object.values(recentData.crypto_breakdown || {})
+                    .reduce((sum, crypto) => sum + crypto.total_profit, 0);
+                recentProfitEl.textContent = `$${totalProfit.toFixed(2)}`;
+            }
+
+            const recentExecutionsEl = document.getElementById('recentExecutions');
+            if (recentExecutionsEl) {
+                recentExecutionsEl.textContent = recentData.total_executions || 0;
+            }
+        }
+
+        function loadActiveOrders() {
+            fetch('/api/trading/orders')
+                .then(response => response.json())
+                .then(data => {
+                    activeOrders = data.orders || [];
+                    updateActiveOrdersDisplay(activeOrders);
+                    console.log(`📋 活跃订单已更新: ${activeOrders.length}个订单`);
+                })
+                .catch(error => {
+                    console.error('❌ 加载活跃订单失败:', error);
+                });
+        }
+
+        function updateActiveOrdersDisplay(orders) {
+            const ordersContainer = document.getElementById('activeOrdersContainer');
+            if (!ordersContainer) return;
+
+            if (orders.length === 0) {
+                ordersContainer.innerHTML = '<div class="no-data">暂无活跃订单</div>';
+                return;
+            }
+
+            const ordersHTML = orders.map(order => {
+                const statusClass = order.status.toLowerCase();
+                const typeIcon = order.type === 'buy' ? '📈' : '📉';
+                const statusText = {
+                    'pending': '待执行',
+                    'submitted': '已提交',
+                    'partial_filled': '部分成交',
+                    'filled': '完全成交',
+                    'cancelled': '已取消',
+                    'failed': '执行失败'
+                }[order.status] || order.status;
+
+                return `
+                    <div class="order-item">
+                        <div class="order-header">
+                            <span class="order-type">${typeIcon} ${order.type.toUpperCase()}</span>
+                            <span class="order-status status-${statusClass}">${statusText}</span>
+                            <span class="order-exchange">${order.exchange}</span>
+                        </div>
+                        <div class="order-details">
+                            <span class="order-symbol">${order.symbol}</span>
+                            <span class="order-amount">${order.amount}</span>
+                            <span class="order-price">$${order.price}</span>
+                        </div>
+                        <div class="order-footer">
+                            <span class="order-time">${formatTime(order.created_at)}</span>
+                            ${order.status === 'pending' || order.status === 'submitted' ?
+                                `<button class="cancel-order-btn" onclick="cancelOrder('${order.id}')">取消</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            ordersContainer.innerHTML = ordersHTML;
+        }
+
+        function loadTradingHistory() {
+            fetch('/api/trading/history')
+                .then(response => response.json())
+                .then(data => {
+                    tradingHistory = data.history || [];
+                    updateTradingHistoryDisplay(tradingHistory);
+                    console.log(`📜 交易历史已更新: ${tradingHistory.length}条记录`);
+                })
+                .catch(error => {
+                    console.error('❌ 加载交易历史失败:', error);
+                });
+        }
+
+        function updateTradingHistoryDisplay(history) {
+            const historyContainer = document.getElementById('tradingHistoryContainer');
+            if (!historyContainer) return;
+
+            if (history.length === 0) {
+                historyContainer.innerHTML = '<div class="no-data">暂无交易历史</div>';
+                return;
+            }
+
+            const historyHTML = history.map(execution => {
+                const statusClass = execution.status.toLowerCase();
+                const profitClass = execution.actual_profit >= 0 ? 'positive' : 'negative';
+                const statusText = {
+                    'executing': '执行中',
+                    'completed': '已完成',
+                    'partial_completed': '部分完成',
+                    'failed': '执行失败',
+                    'buy_failed': '买入失败'
+                }[execution.status] || execution.status;
+
+                return `
+                    <div class="history-item">
+                        <div class="history-header">
+                            <span class="history-crypto">${execution.crypto}</span>
+                            <span class="history-status status-${statusClass}">${statusText}</span>
+                            <span class="history-profit ${profitClass}">
+                                ${execution.actual_profit >= 0 ? '+' : ''}$${execution.actual_profit.toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="history-details">
+                            <span class="history-exchanges">${execution.buy_exchange} → ${execution.sell_exchange}</span>
+                            <span class="history-amount">${execution.amount}</span>
+                            <span class="history-time">${formatTime(execution.created_at)}</span>
+                        </div>
+                        ${execution.notes ? `<div class="history-notes">${execution.notes}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            historyContainer.innerHTML = historyHTML;
+        }
+
+        function cancelOrder(orderId) {
+            if (!confirm('确认取消此订单?')) {
+                return;
+            }
+
+            fetch('/api/trading/cancel-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ order_id: orderId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('订单已取消', 'success');
+                    loadActiveOrders();
+                } else {
+                    showNotification(`取消订单失败: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('❌ 取消订单失败:', error);
+                showNotification('取消订单失败', 'error');
+            });
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
         // 页面加载时初始化
         window.addEventListener('load', () => {
             fetchStats();
@@ -643,6 +1440,7 @@
             initStrategiesTabs();
             updatePriceTable();
             initChart();
+            initTradingPanel();
         });
 
         // ============ API 调用 ============
@@ -760,9 +1558,13 @@
             }
 
             list.innerHTML = opportunities.map(opp => {
-                const profitRate = parseFloat(opp.profit_rate || 0);
+                const profitRate = parseFloat(opp.profit_rate || opp.diff_rate || 0);
+                const potentialProfit = parseFloat(opp.potential_profit || 0);
                 const riskLevel = profitRate > 2 ? 'high' : profitRate > 1 ? 'medium' : 'low';
-                
+
+                // 检查是否为有效的套利机会（有买入和卖出交易所）
+                const isValidArbitrage = opp.crypto && opp.buy_exchange && opp.sell_exchange;
+
                 return `
                     <div class="opportunity-card ${riskLevel}">
                         <div class="opportunity-header">
@@ -774,8 +1576,21 @@
                         <div class="opportunity-details">
                             <div>💵 买入: ${opp.buy_exchange || opp.exchange_1 || '--'} @ $${(opp.buy_price || opp.price_1 || 0).toFixed(2)}</div>
                             <div>💰 卖出: ${opp.sell_exchange || opp.exchange_2 || '--'} @ $${(opp.sell_price || opp.price_2 || 0).toFixed(2)}</div>
+                            <div>🎯 利润: $${potentialProfit.toFixed(2)}</div>
                             <div>⏰ ${new Date(opp.timestamp).toLocaleTimeString()}</div>
                         </div>
+                        ${isValidArbitrage ? `
+                            <div class="opportunity-actions">
+                                <button
+                                    id="execute-${opp.crypto}-${opp.buy_exchange}-${opp.sell_exchange}"
+                                    class="execute-btn"
+                                    onclick="executeTrade(${JSON.stringify(opp).replace(/"/g, '&quot;')})"
+                                    title="执行套利交易"
+                                >
+                                    🎯 执行套利
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');

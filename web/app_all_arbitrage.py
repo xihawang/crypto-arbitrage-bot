@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.utils.multi_source_price_fetcher import multi_source_price_fetcher
 from src.notifications.alert_manager import alert_manager
 from src.trading.auto_executor import auto_executor
+from src.trading.trading_engine import trading_engine, TradingMode
 from src.utils.logger import logger
 from src.config import CRYPTOS, SCAN_INTERVAL, AUTO_TRADE_ENABLED, ALERT_ENABLED, EXCHANGES
 import asyncio
@@ -351,11 +352,225 @@ def get_strategy_info(strategy):
             'min_profit_rate': 0.2
         }
     }
-    
+
     if strategy in strategy_info:
         return jsonify(strategy_info[strategy])
     else:
         return jsonify({'error': f'策略 {strategy} 未找到'}), 404
+
+
+# ============ 交易执行相关API ============
+
+@app.route('/api/trading/execute', methods=['POST'])
+def execute_arbitrage():
+    """执行套利交易"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '请求数据为空'}), 400
+
+        opportunity_id = data.get('opportunity_id')
+        opportunity_data = data.get('opportunity_data')
+
+        if not opportunity_data:
+            return jsonify({'error': '缺少套利机会数据'}), 400
+
+        # 异步执行交易
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        execution = loop.run_until_complete(trading_engine.execute_arbitrage(opportunity_data))
+
+        logger.info(f"🎯 套利交易执行请求: {opportunity_id} - 状态: {execution.status}")
+
+        # 广播执行结果
+        socketio.emit('trade_execution', {
+            'execution': execution.to_dict(),
+            'timestamp': datetime.now().isoformat()
+        }, to='*')
+
+        return jsonify({
+            'success': True,
+            'execution': execution.to_dict(),
+            'message': f'套利交易{execution.status}'
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 执行套利交易失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/trading/orders')
+def get_active_orders():
+    """获取活跃订单"""
+    try:
+        orders = trading_engine.get_active_orders()
+        return jsonify({
+            'orders': orders,
+            'count': len(orders),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取活跃订单失败: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/trading/history')
+def get_trading_history():
+    """获取交易历史"""
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        limit = min(limit, 200)  # 最大限制200条
+
+        history = trading_engine.get_execution_history(limit)
+
+        return jsonify({
+            'history': history,
+            'count': len(history),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取交易历史失败: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/trading/statistics')
+def get_trading_statistics():
+    """获取交易统计"""
+    try:
+        stats = trading_engine.get_profit_statistics()
+
+        # 获取最近7天的统计数据
+        seven_days_ago = datetime.now() - timedelta(days=7)
+        recent_executions = [
+            e for e in trading_engine.execution_history
+            if e.created_at >= seven_days_ago
+        ]
+
+        # 按币种统计
+        crypto_stats = {}
+        for execution in recent_executions:
+            crypto = execution.crypto
+            if crypto not in crypto_stats:
+                crypto_stats[crypto] = {
+                    'count': 0,
+                    'total_profit': 0,
+                    'avg_profit': 0,
+                    'success_count': 0
+                }
+
+            crypto_stats[crypto]['count'] += 1
+            crypto_stats[crypto]['total_profit'] += execution.actual_profit
+            if execution.actual_profit > 0:
+                crypto_stats[crypto]['success_count'] += 1
+
+        # 计算平均值
+        for crypto, data in crypto_stats.items():
+            if data['count'] > 0:
+                data['avg_profit'] = data['total_profit'] / data['count']
+                data['success_rate'] = data['success_count'] / data['count']
+
+        return jsonify({
+            'overall_stats': stats,
+            'recent_7days': {
+                'total_executions': len(recent_executions),
+                'crypto_breakdown': crypto_stats
+            },
+            'trading_mode': trading_engine.mode.value,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取交易统计失败: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/trading/cancel-order', methods=['POST'])
+def cancel_order():
+    """取消订单"""
+    try:
+        data = request.get_json()
+        if not data or 'order_id' not in data:
+            return jsonify({'error': '缺少订单ID'}), 400
+
+        order_id = data['order_id']
+        success = trading_engine.cancel_order(order_id)
+
+        if success:
+            logger.info(f"❌ 订单取消成功: {order_id}")
+            socketio.emit('order_cancelled', {
+                'order_id': order_id,
+                'timestamp': datetime.now().isoformat()
+            }, to='*')
+
+            return jsonify({
+                'success': True,
+                'message': '订单已取消'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': '订单不存在或无法取消'
+            }), 404
+
+    except Exception as e:
+        logger.error(f"❌ 取消订单失败: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/trading/mode', methods=['POST'])
+def set_trading_mode():
+    """设置交易模式"""
+    try:
+        data = request.get_json()
+        if not data or 'mode' not in data:
+            return jsonify({'error': '缺少交易模式'}), 400
+
+        mode_str = data['mode']
+
+        # 验证模式
+        valid_modes = ['live', 'simulation', 'dry_run']
+        if mode_str not in valid_modes:
+            return jsonify({
+                'error': f'无效的交易模式，支持: {", ".join(valid_modes)}'
+            }), 400
+
+        # 映射到枚举
+        mode_mapping = {
+            'live': TradingMode.LIVE,
+            'simulation': TradingMode.SIMULATION,
+            'dry_run': TradingMode.DRY_RUN
+        }
+
+        trading_engine.set_mode(mode_mapping[mode_str])
+
+        logger.info(f"🔄 交易模式已切换为: {mode_str}")
+
+        return jsonify({
+            'success': True,
+            'mode': mode_str,
+            'message': f'交易模式已切换为: {mode_str}'
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 设置交易模式失败: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/trading/mode')
+def get_trading_mode():
+    """获取当前交易模式"""
+    return jsonify({
+        'mode': trading_engine.mode.value,
+        'description': {
+            'live': '实盘交易 - 使用真实资金进行交易',
+            'simulation': '模拟交易 - 模拟交易执行过程',
+            'dry_run': '试运行 - 仅验证交易逻辑，不实际执行'
+        }.get(trading_engine.mode.value, ''),
+        'timestamp': datetime.now().isoformat()
+    })
 
 
 @app.route('/api/manual-scan', methods=['POST'])

@@ -301,6 +301,204 @@ Crypto Arbitrage Bot 提供完整的 RESTful API 和 WebSocket API，支持实�
 
 ---
 
+## 💼 交易执行API
+
+### 9. 获取交易模式
+
+**端点**: `GET /api/trading/mode`
+
+**描述**: 获取当前交易模式
+
+**响应示例**:
+```json
+{
+  "mode": "simulation",
+  "description": "模拟交易 - 模拟交易执行过程",
+  "timestamp": "2025-12-02T17:35:55.497643"
+}
+```
+
+### 10. 设置交易模式
+
+**端点**: `POST /api/trading/mode`
+
+**描述**: 设置交易模式
+
+**请求体**:
+```json
+{
+  "mode": "simulation"
+}
+```
+
+**模式选项**:
+- `simulation`: 模拟交易
+- `dry_run`: 试运行（仅验证逻辑）
+- `live`: 实盘交易
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "mode": "simulation",
+  "message": "交易模式已切换为: simulation"
+}
+```
+
+### 11. 获取交易统计
+
+**端点**: `GET /api/trading/statistics`
+
+**描述**: 获取交易执行统计信息
+
+**响应示例**:
+```json
+{
+  "overall_stats": {
+    "total_executions": 0,
+    "total_profit": 0.0,
+    "avg_profit": 0.0,
+    "success_rate": 0.0,
+    "profit_rate": 0.0
+  },
+  "recent_7days": {
+    "total_executions": 0,
+    "crypto_breakdown": {}
+  },
+  "trading_mode": "simulation",
+  "timestamp": "2025-12-02T17:36:02.159358"
+}
+```
+
+### 12. 获取活跃订单
+
+**端点**: `GET /api/trading/orders`
+
+**描述**: 获取当前活跃的订单列表
+
+**响应示例**:
+```json
+{
+  "orders": [
+    {
+      "id": "uuid-order-id",
+      "opportunity_id": "uuid-execution-id",
+      "exchange": "binance",
+      "type": "buy",
+      "symbol": "BTC/USDT",
+      "amount": 0.01,
+      "price": 86500.0,
+      "status": "filled",
+      "created_at": "2025-12-02T17:35:30.123456",
+      "updated_at": "2025-12-02T17:35:31.654321",
+      "filled_amount": 0.01,
+      "filled_price": 86500.0,
+      "fee": 0.865
+    }
+  ],
+  "count": 1,
+  "timestamp": "2025-12-02T17:36:05.789012"
+}
+```
+
+### 13. 获取交易历史
+
+**端点**: `GET /api/trading/history`
+
+**查询参数**:
+- `limit` (可选): 返回记录数量限制，默认50，最大200
+
+**描述**: 获取交易执行历史记录
+
+**响应示例**:
+```json
+{
+  "history": [
+    {
+      "id": "uuid-execution-id",
+      "crypto": "BTC",
+      "buy_exchange": "okx",
+      "sell_exchange": "bybit",
+      "buy_price": 86505.09,
+      "sell_price": 86963.20,
+      "amount": 0.01,
+      "expected_profit": 458.11,
+      "actual_profit": 456.20,
+      "status": "completed",
+      "created_at": "2025-12-02T17:35:25.123456",
+      "completed_at": "2025-12-02T17:35:26.789012"
+    }
+  ],
+  "count": 1,
+  "timestamp": "2025-12-02T17:36:10.234567"
+}
+```
+
+### 14. 执行套利交易
+
+**端点**: `POST /api/trading/execute`
+
+**描述**: 执行套利交易
+
+**请求体**:
+```json
+{
+  "opportunity_data": {
+    "crypto": "BTC",
+    "buy_exchange": "okx",
+    "sell_exchange": "bybit",
+    "buy_price": 86505.09,
+    "sell_price": 86963.20,
+    "potential_profit": 458.11,
+    "diff_rate": 0.53
+  }
+}
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "execution": {
+    "id": "uuid-execution-id",
+    "crypto": "BTC",
+    "buy_exchange": "okx",
+    "sell_exchange": "bybit",
+    "buy_price": 86505.09,
+    "sell_price": 86963.20,
+    "amount": 0.01,
+    "expected_profit": 458.11,
+    "actual_profit": 0.0,
+    "status": "executing",
+    "created_at": "2025-12-02T17:36:15.123456"
+  },
+  "message": "套利交易executing"
+}
+```
+
+### 15. 取消订单
+
+**端点**: `POST /api/trading/cancel-order`
+
+**描述**: 取消指定的活跃订单
+
+**请求体**:
+```json
+{
+  "order_id": "uuid-order-id"
+}
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "message": "订单已取消"
+}
+```
+
+---
+
 ## 🔄 WebSocket API
 
 ### 连接信息
@@ -430,6 +628,38 @@ socket.on('opportunities_data', (data) => {
 // 策略详情响应
 socket.on('strategy_details', (data) => {
     console.log('策略详情:', data);
+});
+
+// 💼 交易执行事件 (新增)
+socket.on('trade_execution', (data) => {
+    console.log('交易执行更新:', data);
+    /*
+    {
+        "execution": {
+            "id": "uuid-execution-id",
+            "crypto": "BTC",
+            "buy_exchange": "okx",
+            "sell_exchange": "bybit",
+            "buy_price": 86505.09,
+            "sell_price": 86963.20,
+            "amount": 0.01,
+            "actual_profit": 456.20,
+            "status": "completed",
+            "created_at": "2025-12-02T17:36:15.123456"
+        },
+        "timestamp": "2025-12-02T17:36:25.789012"
+    }
+    */
+});
+
+socket.on('order_cancelled', (data) => {
+    console.log('订单取消通知:', data.order_id);
+    /*
+    {
+        "order_id": "uuid-order-id",
+        "timestamp": "2025-12-02T17:36:30.456789"
+    }
+    */
 });
 ```
 
