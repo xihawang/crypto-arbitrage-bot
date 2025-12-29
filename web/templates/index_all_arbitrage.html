@@ -468,6 +468,122 @@
             color: #333;
         }
 
+        /* 交易机会网格样式 */
+        .opportunity-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .opportunity-grid .opportunity-card {
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .opportunity-grid .opportunity-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .opportunity-grid .opportunity-card.high {
+            border-color: #ff9800;
+            background: linear-gradient(135deg, #fff3e0 0%, #ffffff 100%);
+        }
+
+        .opportunity-grid .opportunity-card.medium {
+            border-color: #2196F3;
+            background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%);
+        }
+
+        .opportunity-grid .opportunity-card.low {
+            border-color: #4CAF50;
+            background: linear-gradient(135deg, #e8f5e8 0%, #ffffff 100%);
+        }
+
+        .opportunity-grid .opportunity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .opportunity-grid .crypto-symbol {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .opportunity-grid .opportunity-profit {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .opportunity-grid .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+            padding: 6px 0;
+            font-size: 0.9em;
+        }
+
+        .opportunity-grid .exchange-buy {
+            color: #f44336;
+            font-weight: 600;
+        }
+
+        .opportunity-grid .exchange-sell {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .opportunity-grid .price {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .opportunity-grid .profit-row {
+            margin: 12px 0;
+            padding: 8px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        .opportunity-grid .execute-btn.primary {
+            width: 100%;
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95em;
+            margin-top: 10px;
+        }
+
+        .opportunity-grid .execute-btn.primary:hover {
+            background: linear-gradient(135deg, #1976D2, #1565C0);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+
         .trade-opportunity-card .profit-rate {
             font-size: 14px;
             font-weight: bold;
@@ -1246,12 +1362,7 @@
         }
 
         function updateTradingStatsDisplay(stats) {
-            // 更新总体统计
-            const totalProfitEl = document.getElementById('totalProfit');
-            if (totalProfitEl) {
-                totalProfitEl.textContent = `$${(stats.overall_stats?.total_profit || 0).toFixed(2)}`;
-            }
-
+            // 更新成功率
             const successRateEl = document.getElementById('successRate');
             if (successRateEl) {
                 successRateEl.textContent = `${((stats.overall_stats?.success_rate || 0) * 100).toFixed(1)}%`;
@@ -1266,6 +1377,9 @@
             if (stats.recent_7days) {
                 updateRecentStats(stats.recent_7days);
             }
+
+            // 注意：总收益现在由 updateTotalPotentialProfit() 函数管理
+            // 显示所有可用套利机会的总潜在收益，而不是已执行交易的收益
         }
 
         function updateRecentStats(recentData) {
@@ -1434,6 +1548,7 @@
 
         // 页面加载时初始化
         window.addEventListener('load', () => {
+            console.log('🚀 页面开始加载...');
             fetchStats();
             fetchOpportunities();
             fetchPrices();
@@ -1443,6 +1558,7 @@
             initTradingPanel();
         });
 
+  
         // ============ API 调用 ============
 
         function fetchStats() {
@@ -1542,8 +1658,9 @@
         }
 
         function updateOpportunitiesList() {
+            // 更新策略概览中的机会列表
             const list = document.getElementById('opportunitiesList');
-            const opportunities = currentStrategy ? 
+            const opportunities = currentStrategy ?
                 (allOpportunities[currentStrategy] || []) :
                 Object.values(allOpportunities).flat();
 
@@ -1554,43 +1671,130 @@
                         <div>暂无套利机会</div>
                     </div>
                 `;
+            } else {
+                list.innerHTML = opportunities.map(opp => {
+                    const profitRate = parseFloat(opp.profit_rate || opp.diff_rate || 0);
+                    const potentialProfit = parseFloat(opp.potential_profit || 0);
+                    const riskLevel = profitRate > 2 ? 'high' : profitRate > 1 ? 'medium' : 'low';
+
+                    // 检查是否为有效的套利机会（有买入和卖出交易所）
+                    const isValidArbitrage = opp.crypto && opp.buy_exchange && opp.sell_exchange;
+
+                    return `
+                        <div class="opportunity-card ${riskLevel}">
+                            <div class="opportunity-header">
+                                <span>${opp.crypto || opp.strategy || '交易对'}</span>
+                                <div class="opportunity-profit">
+                                    ↑ ${profitRate.toFixed(2)}%
+                                </div>
+                            </div>
+                            <div class="opportunity-details">
+                                <div>💵 买入: ${opp.buy_exchange || opp.exchange_1 || '--'} @ $${(opp.buy_price || opp.price_1 || 0).toFixed(2)}</div>
+                                <div>💰 卖出: ${opp.sell_exchange || opp.exchange_2 || '--'} @ $${(opp.sell_price || opp.price_2 || 0).toFixed(2)}</div>
+                                <div>🎯 利润: $${potentialProfit.toFixed(2)}</div>
+                                <div>⏰ ${new Date(opp.timestamp).toLocaleTimeString()}</div>
+                            </div>
+                            ${isValidArbitrage ? `
+                                <div class="opportunity-actions">
+                                    <button
+                                        id="execute-${opp.crypto}-${opp.buy_exchange}-${opp.sell_exchange}"
+                                        class="execute-btn"
+                                        onclick="executeTrade(${JSON.stringify(opp).replace(/"/g, '&quot;')})"
+                                        title="执行套利交易"
+                                    >
+                                        🎯 执行套利
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 计算并更新总潜在收益
+            updateTotalPotentialProfit(opportunities);
+
+            // 同时更新交易面板中的机会列表
+            updateTradingOpportunities();
+        }
+
+        function updateTotalPotentialProfit(opportunities) {
+            // 计算所有机会的总潜在收益
+            const totalPotentialProfit = opportunities
+                .reduce((sum, opp) => {
+                    const profit = parseFloat(opp.potential_profit || 0);
+                    return sum + profit;
+                }, 0);
+
+            // 更新页面上的总收益显示
+            const totalProfitEl = document.getElementById('totalProfit');
+            if (totalProfitEl) {
+                totalProfitEl.textContent = `$${totalPotentialProfit.toFixed(2)}`;
+                console.log(`💰 总潜在收益已更新: $${totalPotentialProfit.toFixed(2)} (来自 ${opportunities.length} 个机会)`);
+            }
+        }
+
+        function updateTradingOpportunities() {
+            const tradingList = document.getElementById('tradingOpportunities');
+            if (!tradingList) {
                 return;
             }
 
-            list.innerHTML = opportunities.map(opp => {
-                const profitRate = parseFloat(opp.profit_rate || opp.diff_rate || 0);
-                const potentialProfit = parseFloat(opp.potential_profit || 0);
-                const riskLevel = profitRate > 2 ? 'high' : profitRate > 1 ? 'medium' : 'low';
+            // 获取现货套利机会（只显示可以执行的）
+            const spotOpportunities = allOpportunities.spot_arbitrage || [];
 
-                // 检查是否为有效的套利机会（有买入和卖出交易所）
-                const isValidArbitrage = opp.crypto && opp.buy_exchange && opp.sell_exchange;
+            if (!spotOpportunities.length) {
+                tradingList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <div>暂无可执行的套利机会</div>
+                        <small>系统正在扫描市场机会...</small>
+                    </div>
+                `;
+                return;
+            }
+
+            // 按利润率排序，显示最佳机会
+            const sortedOpportunities = spotOpportunities
+                .filter(opp => opp.crypto && opp.buy_exchange && opp.sell_exchange)
+                .sort((a, b) => parseFloat(b.diff_rate || 0) - parseFloat(a.diff_rate || 0))
+                .slice(0, 6); // 只显示前6个最佳机会
+
+            tradingList.innerHTML = sortedOpportunities.map(opp => {
+                const profitRate = parseFloat(opp.diff_rate || 0);
+                const potentialProfit = parseFloat(opp.potential_profit || 0);
+                const riskLevel = profitRate > 0.5 ? 'high' : profitRate > 0.3 ? 'medium' : 'low';
 
                 return `
-                    <div class="opportunity-card ${riskLevel}">
+                    <div class="opportunity-card ${riskLevel}" style="cursor: pointer;">
                         <div class="opportunity-header">
-                            <span>${opp.crypto || opp.strategy || '交易对'}</span>
+                            <span class="crypto-symbol">${opp.crypto}</span>
                             <div class="opportunity-profit">
-                                ↑ ${profitRate.toFixed(2)}%
+                                ↑ ${profitRate.toFixed(3)}%
                             </div>
                         </div>
                         <div class="opportunity-details">
-                            <div>💵 买入: ${opp.buy_exchange || opp.exchange_1 || '--'} @ $${(opp.buy_price || opp.price_1 || 0).toFixed(2)}</div>
-                            <div>💰 卖出: ${opp.sell_exchange || opp.exchange_2 || '--'} @ $${(opp.sell_price || opp.price_2 || 0).toFixed(2)}</div>
-                            <div>🎯 利润: $${potentialProfit.toFixed(2)}</div>
-                            <div>⏰ ${new Date(opp.timestamp).toLocaleTimeString()}</div>
-                        </div>
-                        ${isValidArbitrage ? `
-                            <div class="opportunity-actions">
-                                <button
-                                    id="execute-${opp.crypto}-${opp.buy_exchange}-${opp.sell_exchange}"
-                                    class="execute-btn"
-                                    onclick="executeTrade(${JSON.stringify(opp).replace(/"/g, '&quot;')})"
-                                    title="执行套利交易"
-                                >
-                                    🎯 执行套利
-                                </button>
+                            <div class="detail-row">
+                                <span class="exchange-buy">📉 ${opp.buy_exchange}</span>
+                                <span class="price">$${opp.buy_price.toFixed(2)}</span>
                             </div>
-                        ` : ''}
+                            <div class="detail-row">
+                                <span class="exchange-sell">📈 ${opp.sell_exchange}</span>
+                                <span class="price">$${opp.sell_price.toFixed(2)}</span>
+                            </div>
+                            <div class="profit-row">
+                                <span>🎯 预期收益: $${potentialProfit.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div class="opportunity-actions">
+                            <button
+                                class="execute-btn primary"
+                                onclick="executeTrade(${JSON.stringify(opp).replace(/"/g, '&quot;')})"
+                                title="执行此套利交易"
+                            >
+                                🚀 执行套利
+                            </button>
+                        </div>
                     </div>
                 `;
             }).join('');

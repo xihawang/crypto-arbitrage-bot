@@ -176,6 +176,7 @@ def index():
     return render_template('index_all_arbitrage.html')
 
 
+
 @app.route('/api/prices')
 def get_prices():
     """获取实时价格 API"""

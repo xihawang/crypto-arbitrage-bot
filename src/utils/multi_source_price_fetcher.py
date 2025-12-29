@@ -347,15 +347,50 @@ class MultiSourcePriceFetcher:
             if crypto in prices and prices[crypto]:
                 analysis = self.analyze_price_diff(crypto, prices[crypto])
                 if analysis.get("status") == "success" and analysis.get("arbitrage_possible"):
+                    buy_price = analysis.get("min_price")
+                    sell_price = analysis.get("max_price")
+                    price_diff = analysis.get("price_diff")
+                    diff_rate = analysis.get("diff_rate")
+
+                    # 纯套利收益计算（不包含交易金额概念）
+                    # 计算单位价差收益（每单位套利的净收益）
+                    price_diff_per_unit = sell_price - buy_price
+
+                    # 交易成本计算（基于价差收益）
+                    trading_fee_rate = 0.001  # 0.1%
+
+                    # 净收益 = 价差 - 买卖费用
+                    # 买入费用 = 买入价 * 费率
+                    # 卖出费用 = 卖出价 * 费率
+                    buy_fee_per_unit = buy_price * trading_fee_rate
+                    sell_fee_per_unit = sell_price * trading_fee_rate
+                    total_fees_per_unit = buy_fee_per_unit + sell_fee_per_unit
+
+                    # 每单位净收益
+                    net_profit_per_unit = price_diff_per_unit - total_fees_per_unit
+
+                    # 对于展示，使用标准交易量来计算实际金额
+                    standard_units = 1.0  # 标准单位
+                    net_profit = max(0, net_profit_per_unit * standard_units)
+
+                    # 毛收益（未扣费用）
+                    gross_profit = price_diff_per_unit * standard_units
+
+                    # 总费用
+                    total_fees = total_fees_per_unit * standard_units
+
                     opportunities.append({
                         "crypto": crypto,
                         "buy_exchange": analysis.get("min_exchange"),
                         "sell_exchange": analysis.get("max_exchange"),
-                        "buy_price": analysis.get("min_price"),
-                        "sell_price": analysis.get("max_price"),
+                        "buy_price": buy_price,
+                        "sell_price": sell_price,
                         "base_price": analysis.get("base_price"),
-                        "diff_rate": analysis.get("diff_rate"),
-                        "potential_profit": analysis.get("price_diff"),
+                        "diff_rate": diff_rate,
+                        "potential_profit": max(0, net_profit),  # 净收益（扣除所有成本）
+                        "gross_profit": gross_profit,  # 毛收益（未扣费用）
+                        "trading_fees": total_fees,  # 总交易费用
+                        "price_diff_per_unit": price_diff_per_unit,  # 单位价差
                         "data_source": analysis.get("data_source"),
                         "timestamp": analysis.get("timestamp"),
                         "market_year": "2024"

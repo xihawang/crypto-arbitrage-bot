@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🧪 交易API测试</h2>
+        <p>直接测试交易执行API，验证修复是否生效</p>
+
+        <button onclick="testTradingAPI()">测试交易执行API</button>
+        <button onclick="testDashboardAPI()">测试仪表板API</button>
+
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        async function testTradingAPI() {
+            showResult('正在测试交易执行API...', 'loading');
+
+            try {
+                const response = await fetch('/api/trading/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        opportunity_data: {
+                            crypto: 'BTC',
+                            buy_exchange: 'binance',
+                            sell_exchange: 'coinbase',
+                            buy_price: 92800,
+                            sell_price: 93200,
+                            potential_profit: 400,
+                            diff_rate: 0.43,
+                            strategy: 'spot_arbitrage'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                console.log('API响应:', data);
+
+                if (data.success === true) {
+                    const execution = data.execution;
+                    const profit = execution ? execution.actual_profit || execution.expected_profit || 0 : 0;
+                    const crypto = execution ? execution.crypto : '未知';
+                    showResult(`✅ API测试成功!\n\n交易状态: ${data.success}\n币种: ${crypto}\n收益: $${profit.toLocaleString()}\n执行状态: ${execution?.status || 'completed'}\n\n完整响应:\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult(`❌ API测试失败: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ 网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDashboardAPI() {
+            showResult('正在测试仪表板API...', 'loading');
+
+            try {
+                const response = await fetch('/api/v2/dashboard');
+                const data = await response.json();
+
+                console.log('仪表板API响应:', data);
+
+                if (data && data.data) {
+                    const dashboardData = data.data;
+                    const opportunityCount = Object.keys(dashboardData.opportunities || {}).length;
+                    showResult(`✅ 仪表板API测试成功!\n\n数据状态: 正常\n套利机会数量: ${opportunityCount}\n缓存状态: ${dashboardData.cache_status || 'unknown'}\n\n数据预览:\n${JSON.stringify(data, null, 2).substring(0, 500)}...`, 'success');
+                } else {
+                    showResult(`❌ 仪表板API测试失败: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ 网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.style.display = 'block';
+            resultDiv.className = `result ${type}`;
+        }
+    </script>
+</body>
+</html>
