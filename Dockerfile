@@ -9,14 +9,20 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     FLASK_APP=web/app_optimized.py \
     FLASK_ENV=production \
-    PORT=5000 \
-    PIP_NO_PROGRESS_BAR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PORT=5000
+
+# 首先升级pip到最新版本以解决线程问题
+RUN pip install --no-cache-dir --upgrade 'pip>=23.1'
+
+# 设置pip环境变量
+ENV PIP_NO_PROGRESS_BAR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_COLOR=1
 
 # 复制requirements文件
 COPY requirements.txt .
 
-# 安装Python依赖 - 简化版本，逐个安装核心包
+# 安装Python依赖
 RUN pip install --no-cache-dir Flask==2.3.0 && \
     pip install --no-cache-dir requests==2.31.0 && \
     pip install --no-cache-dir ccxt && \
