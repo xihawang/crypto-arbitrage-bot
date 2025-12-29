@@ -2,12 +2,31 @@
 
 本指南将帮助你使用Docker容器化部署加密货币套利机器人。
 
+## ⚠️ macOS Docker Desktop 用户注意
+
+如果在macOS上使用Docker Desktop遇到 "RuntimeError: can't start new thread" 错误，这是由于Docker Desktop的资源限制导致的。请：
+
+1. 打开 Docker Desktop
+2. 进入 Settings → Resources → Advanced
+3. 增加以下配置：
+   - CPUs: 至少 4 核
+   - Memory: 至少 4GB
+4. 点击 "Apply & Restart"
+5. 重新构建镜像
+
+或者在Docker Desktop设置中通过以下方式增加资源：
+```bash
+# 检查Docker资源
+docker info
+```
+
 ## 📋 前置要求
 
 - Docker 20.10+
 - Docker Compose 2.0+
-- 至少2GB可用内存
+- 至少2GB可用内存（推荐4GB+）
 - 至少5GB可用磁盘空间
+- macOS用户需确保Docker Desktop有足够资源分配
 
 ## 🚀 快速开始
 
